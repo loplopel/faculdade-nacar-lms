@@ -1,0 +1,10 @@
+{
+  "name": "Faculdade Nacar",
+  "short_name": "Nacar LMS",
+  "description": "Portal de treinamento e conhecimento do Grupo Nacar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080c18",
+  "theme_color": "#f36b2a",
+  "icons": []
+}
