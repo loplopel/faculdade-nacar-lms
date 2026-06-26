@@ -1,0 +1,40 @@
+ROADMAP SUGERIDO - FACULDADE NACAR LMS
+
+v1.1 - Estabilização
+- Corrigir páginas quebradas
+- Separar aluno/admin corretamente
+- Build limpo
+- Aula com vídeo, PDF, imagem e texto funcionando
+
+v1.2 - Admin completo de aulas
+- Melhorar layout do admin
+- Ordenar aulas visualmente
+- Duplicar aula
+- Status da aula
+- Materiais complementares por aula
+
+v1.3 - Upload profissional
+- Supabase Storage integrado no admin
+- Upload direto de vídeo/PDF/imagem
+- Buckets: course-videos, course-pdfs, course-images
+- Nome limpo automático dos arquivos
+
+v1.4 - Usuários e permissões
+- Admin cria usuários
+- Campos: nome, cargo, perfil, loja, região, telefone, WhatsApp, email, situação
+- Perfis: admin, gestor, instrutor, funcionario
+- Controle de acesso por perfil
+
+v1.5 - Experiência do aluno
+- Prova bloqueada até concluir aulas obrigatórias
+- Dashboard do aluno
+- Histórico de conclusão
+- Certificado mais refinado
+- Trilha obrigatória por cargo/loja
+
+v2.0 - Produção segura
+- RLS reativado no Supabase
+- Policies corretas
+- Domínio oficial faculdade.nacar.com.br
+- Logs e auditoria
+- Backup e governança

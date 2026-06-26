@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '../../../../../lib/supabaseClient';
+import { getCurrentUserId } from '../../../../../lib/auth';
 
 type Course = {
   id: string;
@@ -21,16 +22,25 @@ type Lesson = {
   order_index: number;
 };
 
+const contentTypes = [
+  { value: 'text', label: 'Texto' },
+  { value: 'video', label: 'Vídeo' },
+  { value: 'pdf', label: 'PDF' },
+  { value: 'image', label: 'Imagem' },
+  { value: 'mixed', label: 'Misto' },
+];
+
 export default function AdminCourseLessonsPage() {
   const params = useParams();
   const courseId = String(params.id);
 
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [contentType, setContentType] = useState('video');
+  const [contentType, setContentType] = useState('text');
   const [contentUrl, setContentUrl] = useState('');
   const [textContent, setTextContent] = useState('');
   const [durationMinutes, setDurationMinutes] = useState('10');
@@ -38,11 +48,20 @@ export default function AdminCourseLessonsPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingLessonId, setDeletingLessonId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  async function loadData() {
+  async function loadData(options?: { keepForm?: boolean }) {
     setLoading(true);
+    setErrorMessage('');
+
+    const userId = await getCurrentUserId();
+
+    if (!userId) {
+      window.location.href = '/login';
+      return;
+    }
 
     const { data: courseData, error: courseError } = await supabase
       .from('courses')
@@ -50,8 +69,8 @@ export default function AdminCourseLessonsPage() {
       .eq('id', courseId)
       .single();
 
-    if (courseError) {
-      setErrorMessage(`Erro ao buscar curso: ${courseError.message}`);
+    if (courseError || !courseData) {
+      setErrorMessage(courseError?.message || 'Curso não encontrado.');
       setLoading(false);
       return;
     }
@@ -70,15 +89,47 @@ export default function AdminCourseLessonsPage() {
       return;
     }
 
+    const normalizedLessons = (lessonsData || []) as Lesson[];
+
     setCourse(courseData as Course);
-    setLessons((lessonsData || []) as Lesson[]);
-    setOrderIndex(String((lessonsData?.length || 0) + 1));
+    setLessons(normalizedLessons);
+
+    if (!options?.keepForm) {
+      setOrderIndex(String(normalizedLessons.length + 1));
+    }
+
     setLoading(false);
   }
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
+
+  function resetForm(nextOrder?: number) {
+    setEditingLessonId(null);
+    setTitle('');
+    setDescription('');
+    setContentType('text');
+    setContentUrl('');
+    setTextContent('');
+    setDurationMinutes('10');
+    setOrderIndex(String(nextOrder || lessons.length + 1));
+  }
+
+  function handleEditLesson(lesson: Lesson) {
+    setSuccessMessage('');
+    setErrorMessage('');
+    setEditingLessonId(lesson.id);
+    setTitle(lesson.title || '');
+    setDescription(lesson.description || '');
+    setContentType(lesson.content_type || 'text');
+    setContentUrl(lesson.content_url || '');
+    setTextContent(lesson.text_content || '');
+    setDurationMinutes(String(lesson.duration_minutes || 0));
+    setOrderIndex(String(lesson.order_index || lessons.length + 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   async function handleSaveLesson() {
     setSuccessMessage('');
@@ -91,17 +142,21 @@ export default function AdminCourseLessonsPage() {
 
     setSaving(true);
 
-    const { error } = await supabase.from('lessons').insert({
+    const payload = {
       course_id: courseId,
-      title,
-      description,
+      title: title.trim(),
+      description: description.trim() || null,
       content_type: contentType,
-      content_url: contentUrl || null,
-      text_content: textContent || null,
+      content_url: contentUrl.trim() || null,
+      text_content: textContent.trim() || null,
       duration_minutes: Number(durationMinutes) || 0,
       order_index: Number(orderIndex) || lessons.length + 1,
       is_required: true,
-    });
+    };
+
+    const { error } = editingLessonId
+      ? await supabase.from('lessons').update(payload).eq('id', editingLessonId)
+      : await supabase.from('lessons').insert(payload);
 
     setSaving(false);
 
@@ -110,14 +165,36 @@ export default function AdminCourseLessonsPage() {
       return;
     }
 
-    setSuccessMessage('Aula salva com sucesso.');
+    setSuccessMessage(editingLessonId ? 'Aula atualizada com sucesso.' : 'Aula criada com sucesso.');
+    resetForm(lessons.length + 1);
+    await loadData();
+  }
 
-    setTitle('');
-    setDescription('');
-    setContentType('video');
-    setContentUrl('');
-    setTextContent('');
-    setDurationMinutes('10');
+  async function handleDeleteLesson(lesson: Lesson) {
+    const confirmed = window.confirm(
+      `Tem certeza que deseja excluir a aula "${lesson.title}"? Essa ação também remove o progresso dessa aula.`
+    );
+
+    if (!confirmed) return;
+
+    setSuccessMessage('');
+    setErrorMessage('');
+    setDeletingLessonId(lesson.id);
+
+    const { error } = await supabase.from('lessons').delete().eq('id', lesson.id);
+
+    setDeletingLessonId(null);
+
+    if (error) {
+      setErrorMessage(`Erro ao excluir aula: ${error.message}`);
+      return;
+    }
+
+    setSuccessMessage('Aula excluída com sucesso.');
+
+    if (editingLessonId === lesson.id) {
+      resetForm(lessons.length);
+    }
 
     await loadData();
   }
@@ -136,33 +213,38 @@ export default function AdminCourseLessonsPage() {
     <main className="min-h-screen p-6 text-white md:p-10">
       <div className="mx-auto max-w-7xl">
         <section className="mb-8 rounded-[2rem] border border-[#2d3a52] bg-[#1b2435]/90 p-8 shadow-2xl">
-          <p className="text-sm uppercase tracking-[0.35em] text-[#f36b2a]">
-            Administração de aulas
-          </p>
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+            <div>
+              <p className="text-sm uppercase tracking-[0.35em] text-[#f36b2a]">
+                Administração de aulas
+              </p>
 
-          <h1 className="mt-4 text-4xl font-black md:text-5xl">
-            {course?.title}
-          </h1>
+              <h1 className="mt-4 text-4xl font-black md:text-5xl">
+                {course?.title}
+              </h1>
 
-          <p className="mt-3 max-w-3xl text-zinc-300">
-            Cadastre as aulas, conteúdos, vídeos, PDFs, textos e materiais que
-            farão parte deste curso.
-          </p>
+              <p className="mt-4 text-zinc-400">
+                Cadastre, edite, exclua e organize as aulas deste curso.
+              </p>
+            </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a
-              href="/cursos"
-              className="rounded-full border border-[#2d3a52] bg-white/5 px-5 py-3 text-sm font-bold text-zinc-300 hover:border-[#f36b2a] hover:text-white"
-            >
-              Voltar para cursos
-            </a>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="/cursos"
+                className="rounded-full border border-[#2d3a52] bg-white/5 px-5 py-3 text-sm font-bold text-zinc-300 hover:border-[#f36b2a] hover:text-white"
+              >
+                Meus cursos
+              </a>
 
-            <a
-              href={`/cursos/${course?.slug}`}
-              className="rounded-full bg-[#f36b2a] px-5 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(243,107,42,0.25)] hover:bg-[#ff6a24]"
-            >
-              Ver página do curso
-            </a>
+              {course?.slug && (
+                <a
+                  href={`/cursos/${course.slug}`}
+                  className="rounded-full border border-[#2d3a52] bg-white/5 px-5 py-3 text-sm font-bold text-zinc-300 hover:border-[#f36b2a] hover:text-white"
+                >
+                  Ver curso
+                </a>
+              )}
+            </div>
           </div>
         </section>
 
@@ -178,158 +260,205 @@ export default function AdminCourseLessonsPage() {
           </div>
         )}
 
-        <div className="grid gap-6 xl:grid-cols-3">
-          <section className="xl:col-span-2">
-            <div className="rounded-3xl border border-[#2d3a52] bg-[#1b2435]/80 p-6 shadow-xl">
-              <h2 className="text-2xl font-black">Cadastrar nova aula</h2>
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
+          <section className="rounded-[2rem] border border-[#2d3a52] bg-[#1b2435]/90 p-8 shadow-2xl">
+            <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-center">
+              <div>
+                <h2 className="text-2xl font-black">
+                  {editingLessonId ? 'Editar aula' : 'Nova aula'}
+                </h2>
 
-              <div className="mt-6 grid gap-5">
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-zinc-300">
-                    Título da aula
-                  </label>
-                  <input
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    className="w-full rounded-2xl border border-[#2d3a52] bg-[#080c18]/80 px-5 py-4 text-white outline-none placeholder:text-zinc-600 focus:border-[#f36b2a]"
-                    placeholder="Ex: Introdução ao treinamento"
-                  />
-                </div>
+                <p className="mt-2 text-sm text-zinc-400">
+                  {editingLessonId
+                    ? 'Atualize os dados da aula selecionada.'
+                    : 'Preencha os dados para criar uma nova aula.'}
+                </p>
+              </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-zinc-300">
-                    Descrição da aula
-                  </label>
-                  <textarea
-                    value={description}
-                    onChange={(event) => setDescription(event.target.value)}
-                    rows={3}
-                    className="w-full rounded-2xl border border-[#2d3a52] bg-[#080c18]/80 px-5 py-4 text-white outline-none placeholder:text-zinc-600 focus:border-[#f36b2a]"
-                    placeholder="Explique o objetivo desta aula..."
-                  />
-                </div>
-
-                <div className="grid gap-5 md:grid-cols-3">
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-zinc-300">
-                      Tipo de conteúdo
-                    </label>
-                    <select
-                      value={contentType}
-                      onChange={(event) => setContentType(event.target.value)}
-                      className="w-full rounded-2xl border border-[#2d3a52] bg-[#080c18]/80 px-5 py-4 text-white outline-none focus:border-[#f36b2a]"
-                    >
-                      <option value="video">Vídeo</option>
-                      <option value="text">Texto</option>
-                      <option value="pdf">PDF</option>
-                      <option value="image">Imagem</option>
-                      <option value="mixed">Misto</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-zinc-300">
-                      Duração em minutos
-                    </label>
-                    <input
-                      value={durationMinutes}
-                      onChange={(event) =>
-                        setDurationMinutes(event.target.value)
-                      }
-                      className="w-full rounded-2xl border border-[#2d3a52] bg-[#080c18]/80 px-5 py-4 text-white outline-none placeholder:text-zinc-600 focus:border-[#f36b2a]"
-                      placeholder="10"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-zinc-300">
-                      Ordem
-                    </label>
-                    <input
-                      value={orderIndex}
-                      onChange={(event) => setOrderIndex(event.target.value)}
-                      className="w-full rounded-2xl border border-[#2d3a52] bg-[#080c18]/80 px-5 py-4 text-white outline-none placeholder:text-zinc-600 focus:border-[#f36b2a]"
-                      placeholder="1"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-zinc-300">
-                    Link do conteúdo
-                  </label>
-                  <input
-                    value={contentUrl}
-                    onChange={(event) => setContentUrl(event.target.value)}
-                    className="w-full rounded-2xl border border-[#2d3a52] bg-[#080c18]/80 px-5 py-4 text-white outline-none placeholder:text-zinc-600 focus:border-[#f36b2a]"
-                    placeholder="Link do vídeo, PDF, imagem ou material"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-zinc-300">
-                    Texto da aula
-                  </label>
-                  <textarea
-                    value={textContent}
-                    onChange={(event) => setTextContent(event.target.value)}
-                    rows={6}
-                    className="w-full rounded-2xl border border-[#2d3a52] bg-[#080c18]/80 px-5 py-4 text-white outline-none placeholder:text-zinc-600 focus:border-[#f36b2a]"
-                    placeholder="Conteúdo em texto da aula, resumo ou instruções..."
-                  />
-                </div>
-
+              {editingLessonId && (
                 <button
                   type="button"
-                  onClick={handleSaveLesson}
-                  disabled={saving}
-                  className="rounded-2xl bg-[#f36b2a] px-5 py-4 text-lg font-black text-white shadow-[0_0_28px_rgba(243,107,42,0.35)] hover:bg-[#ff6a24] disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => {
+                    resetForm(lessons.length + 1);
+                    setSuccessMessage('');
+                    setErrorMessage('');
+                  }}
+                  className="rounded-full border border-[#2d3a52] bg-white/5 px-5 py-3 text-sm font-bold text-zinc-300 hover:border-[#f36b2a] hover:text-white"
                 >
-                  {saving ? 'Salvando...' : 'Salvar aula'}
+                  Cancelar edição
                 </button>
+              )}
+            </div>
+
+            <div className="grid gap-5">
+              <label className="grid gap-2">
+                <span className="text-sm font-bold text-zinc-300">Título da aula</span>
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="rounded-2xl border border-[#2d3a52] bg-[#080c18] px-4 py-3 text-white outline-none focus:border-[#f36b2a]"
+                  placeholder="Ex.: Aula 1 - Introdução"
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-bold text-zinc-300">Descrição da aula</span>
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  rows={3}
+                  className="rounded-2xl border border-[#2d3a52] bg-[#080c18] px-4 py-3 text-white outline-none focus:border-[#f36b2a]"
+                  placeholder="Resumo breve da aula"
+                />
+              </label>
+
+              <div className="grid gap-5 md:grid-cols-3">
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-zinc-300">Tipo de conteúdo</span>
+                  <select
+                    value={contentType}
+                    onChange={(event) => setContentType(event.target.value)}
+                    className="rounded-2xl border border-[#2d3a52] bg-[#080c18] px-4 py-3 text-white outline-none focus:border-[#f36b2a]"
+                  >
+                    {contentTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-zinc-300">Duração em minutos</span>
+                  <input
+                    value={durationMinutes}
+                    onChange={(event) => setDurationMinutes(event.target.value)}
+                    type="number"
+                    min="0"
+                    className="rounded-2xl border border-[#2d3a52] bg-[#080c18] px-4 py-3 text-white outline-none focus:border-[#f36b2a]"
+                  />
+                </label>
+
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-zinc-300">Ordem</span>
+                  <input
+                    value={orderIndex}
+                    onChange={(event) => setOrderIndex(event.target.value)}
+                    type="number"
+                    min="1"
+                    className="rounded-2xl border border-[#2d3a52] bg-[#080c18] px-4 py-3 text-white outline-none focus:border-[#f36b2a]"
+                  />
+                </label>
               </div>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-bold text-zinc-300">Link do conteúdo</span>
+                <input
+                  value={contentUrl}
+                  onChange={(event) => setContentUrl(event.target.value)}
+                  className="rounded-2xl border border-[#2d3a52] bg-[#080c18] px-4 py-3 text-white outline-none focus:border-[#f36b2a]"
+                  placeholder="Link de vídeo, PDF, imagem ou material"
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-bold text-zinc-300">Texto da aula</span>
+                <textarea
+                  value={textContent}
+                  onChange={(event) => setTextContent(event.target.value)}
+                  rows={10}
+                  className="rounded-2xl border border-[#2d3a52] bg-[#080c18] px-4 py-3 text-white outline-none focus:border-[#f36b2a]"
+                  placeholder="Conteúdo textual da aula"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={handleSaveLesson}
+                disabled={saving}
+                className="rounded-full bg-[#f36b2a] px-6 py-4 text-sm font-black text-white shadow-[0_0_20px_rgba(243,107,42,0.25)] hover:bg-[#ff6a24] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving
+                  ? 'Salvando...'
+                  : editingLessonId
+                    ? 'Salvar alterações'
+                    : 'Salvar aula'}
+              </button>
             </div>
           </section>
 
-          <aside className="rounded-3xl border border-[#2d3a52] bg-[#1b2435]/80 p-6 shadow-xl">
+          <section className="rounded-[2rem] border border-[#2d3a52] bg-[#1b2435]/90 p-6 shadow-2xl">
             <h2 className="text-2xl font-black">Aulas cadastradas</h2>
 
-            <p className="mt-2 text-sm text-zinc-400">
-              Total de aulas: {lessons.length}
-            </p>
-
-            <div className="mt-5 space-y-4">
+            <div className="mt-6 space-y-4">
               {lessons.length === 0 && (
-                <div className="rounded-2xl border border-[#f36b2a]/30 bg-[#f36b2a]/10 p-4 text-sm text-zinc-300">
+                <div className="rounded-3xl border border-dashed border-[#2d3a52] p-6 text-zinc-400">
                   Nenhuma aula cadastrada ainda.
                 </div>
               )}
 
               {lessons.map((lesson) => (
-                <article
+                <div
                   key={lesson.id}
-                  className="rounded-2xl border border-[#2d3a52] bg-[#080c18]/60 p-4"
+                  className={`rounded-3xl border p-5 ${
+                    editingLessonId === lesson.id
+                      ? 'border-[#f36b2a] bg-[#f36b2a]/10'
+                      : 'border-[#2d3a52] bg-[#080c18]/70'
+                  }`}
                 >
-                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#f36b2a]">
-                    Aula {lesson.order_index}
-                  </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.25em] text-[#f36b2a]">
+                        Aula {lesson.order_index}
+                      </p>
 
-                  <h3 className="mt-3 font-black">{lesson.title}</h3>
+                      <h3 className="mt-2 font-black">{lesson.title}</h3>
 
-                  <p className="mt-2 text-xs text-zinc-400">
-                    Tipo: {lesson.content_type} • Duração:{' '}
-                    {lesson.duration_minutes || 0} min
-                  </p>
+                      <p className="mt-2 text-sm text-zinc-400">
+                        Tipo: {lesson.content_type} • {lesson.duration_minutes || 0} min
+                      </p>
+                    </div>
+                  </div>
 
                   {lesson.description && (
                     <p className="mt-3 text-sm leading-6 text-zinc-400">
                       {lesson.description}
                     </p>
                   )}
-                </article>
+
+                  {lesson.content_url && (
+                    <a
+                      href={lesson.content_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 inline-flex text-sm font-bold text-[#f36b2a] hover:text-[#ff6a24]"
+                    >
+                      Abrir conteúdo
+                    </a>
+                  )}
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => handleEditLesson(lesson)}
+                      className="rounded-full border border-[#2d3a52] bg-white/5 px-4 py-3 text-sm font-bold text-zinc-200 hover:border-[#f36b2a] hover:text-white"
+                    >
+                      Editar
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteLesson(lesson)}
+                      disabled={deletingLessonId === lesson.id}
+                      className="rounded-full border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deletingLessonId === lesson.id ? 'Excluindo...' : 'Excluir'}
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
-          </aside>
+          </section>
         </div>
       </div>
     </main>

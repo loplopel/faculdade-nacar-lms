@@ -1,0 +1,35 @@
+FACULDADE NACAR LMS - v1.1 ESTABILIZACAO
+
+SUBSTITUIR:
+- app/cursos/[id]/aulas/[lessonId]/page.tsx
+- app/admin/cursos/[id]/aulas/page.tsx
+
+O QUE FOI CORRIGIDO NA v1.1:
+1. A página do aluno da aula estava errada/corrompida: estava com código de administração de aulas.
+2. Restaurada a página correta da aula do aluno.
+3. A aula agora exibe conteúdo conforme o tipo:
+   - video: player HTML5 com fallback para abrir em nova aba
+   - pdf: iframe + botão abrir PDF
+   - image: imagem na tela
+   - text/link: texto e botão de conteúdo
+4. Mantido progresso real por usuário logado.
+5. Admin de aulas ganhou:
+   - criar aula
+   - editar aula
+   - excluir aula
+   - cancelar edição
+   - abrir conteúdo cadastrado
+6. Mantido padrão visual Nacar atual.
+
+COMANDOS APOS SUBSTITUIR:
+cd "C:\Users\rodri\OneDrive\Desktop\faculdade nacar\next-app"
+npm.cmd run build
+
+Se o build passar:
+git add .
+git commit -m "v1.1 estabiliza aulas e conteudos"
+git push
+
+OBSERVACAO SOBRE VIDEO:
+Se o vídeo abrir em nova aba, mas não tocar dentro do player, o arquivo provavelmente está em MP4 com codificação incompatível.
+Converter para MP4 H.264 + áudio AAC.
