@@ -15,6 +15,11 @@ const actions = [
     href: '/admin/categorias',
   },
   {
+    title: 'Usuários e perfis',
+    description: 'Cadastrar e editar colaboradores, cargos, lojas, regiões, perfis e situação.',
+    href: '/admin/usuarios',
+  },
+  {
     title: 'Relatórios',
     description: 'Ver notas, cursos concluídos, pendências e ranking por loja. Em breve.',
     href: '/admin',

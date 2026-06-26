@@ -26,6 +26,11 @@ create table if not exists profiles (
   role text not null check (role in ('admin', 'gestor', 'instrutor', 'funcionario')),
   store_id uuid references stores(id),
   position text,
+  region text,
+  seller_name text,
+  phone text,
+  whatsapp text,
+  situation text default 'active',
   is_active boolean default true,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
