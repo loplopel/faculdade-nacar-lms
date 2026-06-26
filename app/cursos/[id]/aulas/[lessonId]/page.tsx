@@ -23,7 +23,13 @@ type Lesson = {
   order_index: number;
 };
 
+function normalizeContentType(type: string | null | undefined) {
+  return String(type || 'text').toLowerCase().trim();
+}
+
 function getContentTypeLabel(type: string) {
+  const normalizedType = normalizeContentType(type);
+
   const labels: Record<string, string> = {
     video: 'Vídeo',
     text: 'Texto',
@@ -32,7 +38,42 @@ function getContentTypeLabel(type: string) {
     mixed: 'Misto',
   };
 
-  return labels[type] || type;
+  return labels[normalizedType] || type;
+}
+
+function isPdfUrl(url: string) {
+  return url.toLowerCase().split('?')[0].endsWith('.pdf');
+}
+
+function isImageUrl(url: string) {
+  const cleanUrl = url.toLowerCase().split('?')[0];
+  return (
+    cleanUrl.endsWith('.jpg') ||
+    cleanUrl.endsWith('.jpeg') ||
+    cleanUrl.endsWith('.png') ||
+    cleanUrl.endsWith('.webp') ||
+    cleanUrl.endsWith('.gif')
+  );
+}
+
+function isVideoUrl(url: string) {
+  const cleanUrl = url.toLowerCase().split('?')[0];
+  return (
+    cleanUrl.endsWith('.mp4') ||
+    cleanUrl.endsWith('.webm') ||
+    cleanUrl.endsWith('.ogg') ||
+    cleanUrl.endsWith('.mov')
+  );
+}
+
+function getSafeContentUrl(url: string | null) {
+  const cleanUrl = String(url || '').trim();
+
+  if (!cleanUrl) {
+    return '';
+  }
+
+  return cleanUrl;
 }
 
 export default function LessonDetailPage() {
@@ -88,7 +129,6 @@ export default function LessonDetailPage() {
       setCourse(courseData as Course);
       setLesson(lessonData as Lesson);
 
-        
       const { data: progressData } = await supabase
         .from('lesson_progress')
         .select('is_completed')
@@ -96,11 +136,11 @@ export default function LessonDetailPage() {
         .eq('lesson_id', lessonId)
         .single();
 
-        if (progressData?.is_completed) {
-          setCompleted(true);
-        }
+      if (progressData?.is_completed) {
+        setCompleted(true);
+      }
 
-        setLoading(false);
+      setLoading(false);
     }
 
     loadLesson();
@@ -125,6 +165,21 @@ export default function LessonDetailPage() {
       </main>
     );
   }
+
+  const contentType = normalizeContentType(lesson.content_type);
+  const contentUrl = getSafeContentUrl(lesson.content_url);
+
+  const shouldShowVideo =
+    Boolean(contentUrl) && (contentType === 'video' || isVideoUrl(contentUrl));
+
+  const shouldShowPdf =
+    Boolean(contentUrl) && (contentType === 'pdf' || isPdfUrl(contentUrl));
+
+  const shouldShowImage =
+    Boolean(contentUrl) && (contentType === 'image' || isImageUrl(contentUrl));
+
+  const shouldShowGenericLink =
+    Boolean(contentUrl) && !shouldShowVideo && !shouldShowPdf && !shouldShowImage;
 
   return (
     <main className="min-h-screen p-6 text-white md:p-10">
@@ -172,46 +227,87 @@ export default function LessonDetailPage() {
                 </p>
               )}
 
-              {lesson.content_url && (
+              {shouldShowVideo && (
+                <div className="mt-6 rounded-3xl border border-[#2d3a52] bg-[#080c18]/70 p-5">
+                  <div className="overflow-hidden rounded-2xl border border-[#2d3a52] bg-black">
+                    <video
+                      controls
+                      preload="metadata"
+                      playsInline
+                      className="aspect-video w-full bg-black"
+                      src={contentUrl}
+                    >
+                      Seu navegador não suporta reprodução de vídeo.
+                    </video>
+                  </div>
+
+                  <a
+                    href={contentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-block break-all text-sm font-bold text-[#f36b2a] hover:text-[#ffb088]"
+                  >
+                    Abrir vídeo em nova aba
+                  </a>
+                </div>
+              )}
+
+              {shouldShowPdf && (
+                <div className="mt-6 rounded-3xl border border-[#2d3a52] bg-[#080c18]/70 p-5">
+                  <div className="overflow-hidden rounded-2xl border border-[#2d3a52] bg-white">
+                    <iframe
+                      src={contentUrl}
+                      title={lesson.title}
+                      className="h-[620px] w-full"
+                    />
+                  </div>
+
+                  <a
+                    href={contentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-block break-all text-sm font-bold text-[#f36b2a] hover:text-[#ffb088]"
+                  >
+                    Abrir PDF em nova aba
+                  </a>
+                </div>
+              )}
+
+              {shouldShowImage && (
+                <div className="mt-6 rounded-3xl border border-[#2d3a52] bg-[#080c18]/70 p-5">
+                  <div className="overflow-hidden rounded-2xl border border-[#2d3a52] bg-black/40">
+                    <img
+                      src={contentUrl}
+                      alt={lesson.title}
+                      className="max-h-[620px] w-full object-contain"
+                    />
+                  </div>
+
+                  <a
+                    href={contentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-block break-all text-sm font-bold text-[#f36b2a] hover:text-[#ffb088]"
+                  >
+                    Abrir imagem em nova aba
+                  </a>
+                </div>
+              )}
+
+              {shouldShowGenericLink && (
                 <div className="mt-6 rounded-3xl border border-[#2d3a52] bg-[#080c18]/70 p-5">
                   <p className="text-sm font-bold text-[#ffb088]">
-                    Link do conteúdo
+                    Material da aula
                   </p>
 
                   <a
-                    href={lesson.content_url}
+                    href={contentUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 inline-block break-all text-sm font-bold text-[#f36b2a] hover:text-[#ffb088]"
                   >
-                    {lesson.content_url}
+                    Abrir conteúdo em nova aba
                   </a>
-
-                  {lesson.content_type === 'video' && (
-                    <div className="mt-5 rounded-2xl border border-[#2d3a52] bg-black/40 p-6 text-center">
-                      <p className="text-sm text-zinc-400">
-                        Prévia do vídeo será integrada aqui.
-                      </p>
-                    </div>
-                  )}
-
-                  {lesson.content_type === 'pdf' && (
-                    <div className="mt-5 rounded-2xl border border-[#2d3a52] bg-black/40 p-6 text-center">
-                      <p className="text-sm text-zinc-400">
-                        Visualizador de PDF será integrado aqui.
-                      </p>
-                    </div>
-                  )}
-
-                  {lesson.content_type === 'image' && (
-                    <div className="mt-5 overflow-hidden rounded-2xl border border-[#2d3a52] bg-black/40">
-                      <img
-                        src={lesson.content_url}
-                        alt={lesson.title}
-                        className="max-h-[500px] w-full object-contain"
-                      />
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -227,7 +323,7 @@ export default function LessonDetailPage() {
                 </div>
               )}
 
-              {!lesson.content_url && !lesson.text_content && (
+              {!contentUrl && !lesson.text_content && (
                 <div className="mt-6 rounded-3xl border border-[#f36b2a]/30 bg-[#f36b2a]/10 p-6">
                   <p className="font-bold text-[#ffb088]">
                     Esta aula ainda não possui conteúdo.
@@ -248,53 +344,56 @@ export default function LessonDetailPage() {
               <button
                 type="button"
                 onClick={async () => {
-                    setSavingProgress(true);
-                    setProgressMessage('');
+                  setSavingProgress(true);
+                  setProgressMessage('');
 
-                    const userId = await getCurrentUserId();
+                  const userId = await getCurrentUserId();
 
-                    if (!userId) {
-                      window.location.href = '/login';
-                      return;
-                    }
+                  if (!userId) {
+                    window.location.href = '/login';
+                    return;
+                  }
 
-                    const { error } = await supabase.from('lesson_progress').upsert(
-                    {
+                  const { error } = await supabase
+                    .from('lesson_progress')
+                    .upsert(
+                      {
                         user_id: userId,
                         lesson_id: lesson.id,
                         course_id: course.id,
                         is_completed: true,
                         completed_at: new Date().toISOString(),
-                    },
-                    {
+                      },
+                      {
                         onConflict: 'user_id,lesson_id',
-                    }
+                      }
                     );
 
-                    setSavingProgress(false);
+                  setSavingProgress(false);
 
-                    if (error) {
+                  if (error) {
                     setProgressMessage(`Erro ao salvar progresso: ${error.message}`);
                     return;
-                    }
+                  }
 
-                    setCompleted(true);
-                    setProgressMessage('Progresso salvo no Supabase.');
+                  setCompleted(true);
+                  setProgressMessage('Aula marcada como concluída.');
                 }}
                 disabled={savingProgress || completed}
                 className="mt-6 w-full rounded-2xl bg-[#f36b2a] px-5 py-4 text-lg font-black text-white shadow-[0_0_28px_rgba(243,107,42,0.35)] hover:bg-[#ff6a24] disabled:cursor-not-allowed disabled:opacity-60"
-                >
+              >
                 {savingProgress
-                    ? 'Salvando...'
-                    : completed
+                  ? 'Salvando...'
+                  : completed
                     ? 'Aula concluída'
                     : 'Marcar como concluída'}
-                </button>
-                {progressMessage && (
-                    <p className="mt-4 rounded-2xl border border-[#2d3a52] bg-[#080c18]/70 p-4 text-sm text-zinc-300">
-                        {progressMessage}
-                    </p>
-                    )}
+              </button>
+
+              {progressMessage && (
+                <p className="mt-4 rounded-2xl border border-[#2d3a52] bg-[#080c18]/70 p-4 text-sm text-zinc-300">
+                  {progressMessage}
+                </p>
+              )}
 
               <a
                 href={`/cursos/${course.slug}`}
@@ -313,12 +412,12 @@ export default function LessonDetailPage() {
 
             <div className="rounded-3xl border border-[#f36b2a]/30 bg-[#f36b2a]/10 p-6 shadow-xl">
               <h2 className="text-xl font-black text-[#ffb088]">
-                Próximo passo
+                Dica de conclusão
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-zinc-300">
-                Na próxima etapa, vamos gravar o progresso real do colaborador
-                na tabela lesson_progress.
+                Assista ao conteúdo completo, leia as orientações da aula e só
+                depois marque como concluída.
               </p>
             </div>
           </aside>
