@@ -1,0 +1,49 @@
+FACULDADE NACAR LMS — v1.2
+Admin de Aulas Profissional
+
+COMO SUBSTITUIR
+1. Extraia este ZIP dentro de:
+   C:\Users\rodri\OneDrive\Desktop\faculdade nacar
+
+2. Ele contém a pasta:
+   next-app
+
+3. Substitua a pasta next-app do seu projeto pelos arquivos deste ZIP.
+   IMPORTANTE: este pacote NÃO inclui:
+   - node_modules
+   - .next
+   - .env.local
+
+4. Depois rode:
+   cd "C:\Users\rodri\OneDrive\Desktop\faculdade nacar\next-app"
+   npm.cmd install
+   Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+   npm.cmd run build
+   npm.cmd run dev
+
+5. Se o build passar:
+   git add .
+   git commit -m "v1.2 admin de aulas profissional"
+   git push
+
+O QUE ENTROU NA v1.2
+- Admin de aulas mais seguro e organizado
+- Criar aula
+- Editar aula existente
+- Excluir aula com confirmação
+- Cancelar edição
+- Limpar formulário
+- Reordenar aulas com botões subir/descer
+- Visualizar aula pelo admin
+- Prévia do conteúdo no formulário
+- Suporte melhor para vídeo MP4, YouTube, PDF, imagem e links
+- Página do aluno com player melhorado
+- next.config.js com turbopack.root para reduzir alerta de workspace root
+
+OBSERVAÇÃO SOBRE VÍDEOS
+Se um vídeo MP4 abrir em nova aba, mas não tocar dentro do player, normalmente o arquivo está em codec incompatível.
+Formato recomendado:
+- MP4
+- Vídeo H.264
+- Áudio AAC
+- Nome do arquivo sem espaço e sem parênteses, exemplo: sunvision-1.mp4

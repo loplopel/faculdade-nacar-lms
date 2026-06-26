@@ -27,10 +27,48 @@ function normalizeContentType(type: string | null | undefined) {
   return String(type || 'text').toLowerCase();
 }
 
+function getContentTypeLabel(type: string | null | undefined) {
+  const normalized = normalizeContentType(type);
+
+  const labels: Record<string, string> = {
+    text: 'Texto',
+    video: 'Vídeo',
+    pdf: 'PDF',
+    image: 'Imagem',
+    mixed: 'Misto',
+  };
+
+  return labels[normalized] || normalized;
+}
+
+function extractYouTubeId(url: string) {
+  const patterns = [
+    /youtube\.com\/watch\?v=([^&]+)/,
+    /youtu\.be\/([^?&]+)/,
+    /youtube\.com\/embed\/([^?&]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return null;
+}
+
 function isVideoUrl(url: string | null) {
   if (!url) return false;
   const cleanUrl = url.toLowerCase().split('?')[0];
   return cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.ogg');
+}
+
+function getVideoMimeType(url: string) {
+  const cleanUrl = url.toLowerCase().split('?')[0];
+
+  if (cleanUrl.endsWith('.webm')) return 'video/webm';
+  if (cleanUrl.endsWith('.ogg')) return 'video/ogg';
+
+  return 'video/mp4';
 }
 
 function isPdfUrl(url: string | null) {
@@ -41,6 +79,7 @@ function isPdfUrl(url: string | null) {
 function isImageUrl(url: string | null) {
   if (!url) return false;
   const cleanUrl = url.toLowerCase().split('?')[0];
+
   return (
     cleanUrl.endsWith('.jpg') ||
     cleanUrl.endsWith('.jpeg') ||
@@ -163,6 +202,32 @@ export default function LessonDetailPage() {
 
     const type = normalizeContentType(lesson.content_type);
     const url = lesson.content_url?.trim() || null;
+    const youtubeId = url ? extractYouTubeId(url) : null;
+
+    if (type === 'video' && youtubeId) {
+      return (
+        <div className="space-y-4">
+          <div className="overflow-hidden rounded-3xl border border-[#2d3a52] bg-black">
+            <iframe
+              src={`https://www.youtube.com/embed/${youtubeId}`}
+              title={lesson.title}
+              className="aspect-video w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+
+          <a
+            href={url || '#'}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex rounded-full border border-[#2d3a52] bg-white/5 px-5 py-3 text-sm font-bold text-zinc-200 hover:border-[#f36b2a] hover:text-white"
+          >
+            Abrir vídeo em nova aba
+          </a>
+        </div>
+      );
+    }
 
     if ((type === 'video' || isVideoUrl(url)) && url) {
       return (
@@ -173,9 +238,9 @@ export default function LessonDetailPage() {
               controls
               playsInline
               preload="metadata"
-              className="h-auto w-full bg-black"
+              className="aspect-video w-full bg-black"
             >
-              <source src={url} type="video/mp4" />
+              <source src={url} type={getVideoMimeType(url)} />
               Seu navegador não conseguiu reproduzir este vídeo.
             </video>
           </div>
@@ -222,6 +287,7 @@ export default function LessonDetailPage() {
     if ((type === 'image' || isImageUrl(url)) && url) {
       return (
         <div className="space-y-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={url}
             alt={lesson.title}
@@ -318,7 +384,7 @@ export default function LessonDetailPage() {
 
           <div className="mt-6 flex flex-wrap gap-3 text-sm">
             <span className="rounded-full border border-[#2d3a52] bg-[#080c18]/70 px-4 py-2 text-zinc-300">
-              Tipo: {lesson.content_type}
+              Tipo: {getContentTypeLabel(lesson.content_type)}
             </span>
 
             <span className="rounded-full border border-[#2d3a52] bg-[#080c18]/70 px-4 py-2 text-zinc-300">
