@@ -1,0 +1,26 @@
+FACULDADE NACAR LMS — v1.8
+
+Tema da sprint:
+- Lojas, cargos, grupos e visão mobile.
+
+O que entrou:
+1. Menu mobile para celular.
+2. Sidebar desktop mantida.
+3. Botão Sair do LMS continua ativo.
+4. Tela /admin/lojas para cadastrar, editar e inativar lojas.
+5. Tela /admin/cargos para cadastrar, editar e inativar cargos/funções.
+6. Tela /admin/grupos para criar grupos e vincular usuários.
+7. Admin principal com atalhos para lojas, cargos e grupos.
+8. Ajustes globais para reduzir estouros horizontais em celular.
+9. SQL v1.8_organization_mobile.sql para preparar tabelas e permissões.
+
+Como aplicar:
+1. Substitua a pasta next-app usando o ZIP completo.
+2. Rode o SQL: next-app/supabase/v1.8_organization_mobile.sql no Supabase.
+3. Faça git push para a Vercel.
+4. Teste no celular: /, /cursos, /admin, /admin/lojas, /admin/cargos, /admin/grupos, /admin/relatorios.
+
+Importante:
+- Ainda não estamos ativando RLS final.
+- Ainda não estamos fazendo trilhas obrigatórias por loja/cargo/grupo.
+- Isso fica para a v1.9.

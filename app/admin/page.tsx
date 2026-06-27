@@ -20,6 +20,21 @@ const actions = [
     href: '/admin/usuarios',
   },
   {
+    title: 'Lojas',
+    description: 'Cadastrar, editar e inativar lojas usadas em usuários, matrículas e relatórios.',
+    href: '/admin/lojas',
+  },
+  {
+    title: 'Cargos e funções',
+    description: 'Padronizar cargos para filtros, relatórios e futuras trilhas obrigatórias.',
+    href: '/admin/cargos',
+  },
+  {
+    title: 'Grupos de usuários',
+    description: 'Organizar colaboradores por grupos para preparar trilhas corporativas.',
+    href: '/admin/grupos',
+  },
+  {
     title: 'Matrículas e acessos',
     description: 'Liberar cursos para colaboradores, controlar status e acompanhar a jornada do aluno.',
     href: '/admin/matriculas',
@@ -48,7 +63,7 @@ export default function AdminPage() {
             Administração
           </h1>
           <p className="mt-3 max-w-3xl text-zinc-300">
-            Área de gestão dos cursos, categorias, aulas, provas, certificados e relatórios da Faculdade Nacar.
+            Área de gestão dos cursos, categorias, aulas, provas, certificados, usuários, lojas, cargos, grupos e relatórios da Faculdade Nacar.
           </p>
         </div>
 

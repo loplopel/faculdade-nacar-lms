@@ -12,10 +12,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen lg:flex">
       <Sidebar />
 
-      <div className="min-h-screen flex-1">
+      <div className="min-h-screen min-w-0 flex-1">
         {children}
       </div>
     </div>

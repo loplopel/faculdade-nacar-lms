@@ -22,6 +22,8 @@ type Profile = {
   role: Role;
   position: string | null;
   store: string | null;
+  store_id?: string | null;
+  stores?: { name: string; code: string | null } | { name: string; code: string | null }[] | null;
   region: string | null;
   situation: string | null;
   is_active: boolean | null;
@@ -123,6 +125,16 @@ function statusBadgeClass(status: string | null | undefined) {
   return statusClasses[status || 'not_started'] || statusClasses.not_started;
 }
 
+function getProfileStore(profile: Profile) {
+  const storeRelation = profile.stores;
+
+  if (Array.isArray(storeRelation)) {
+    return storeRelation[0]?.name || profile.store || 'Sem loja';
+  }
+
+  return storeRelation?.name || profile.store || 'Sem loja';
+}
+
 function percent(value: number, total: number) {
   if (!total) return 0;
   return Math.round((value / total) * 100);
@@ -183,7 +195,7 @@ export default function AdminReportsPage() {
     const [profilesResult, coursesResult, lessonsResult, enrollmentsResult, progressResult, attemptsResult, certificatesResult] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, full_name, email, role, position, store, region, situation, is_active')
+        .select('id, full_name, email, role, position, store_id, store, region, situation, is_active, stores ( name, code )')
         .order('full_name', { ascending: true }),
       supabase
         .from('courses')
@@ -266,7 +278,7 @@ export default function AdminReportsPage() {
     const uniqueStores = Array.from(
       new Set(
         profiles
-          .map((profile) => profile.store || 'Sem loja')
+          .map((profile) => getProfileStore(profile))
           .filter(Boolean)
       )
     );
@@ -325,10 +337,10 @@ export default function AdminReportsPage() {
         profile.full_name.toLowerCase().includes(normalizedSearch) ||
         profile.email.toLowerCase().includes(normalizedSearch) ||
         (profile.position || '').toLowerCase().includes(normalizedSearch) ||
-        (profile.store || '').toLowerCase().includes(normalizedSearch) ||
+        getProfileStore(profile).toLowerCase().includes(normalizedSearch) ||
         (profile.region || '').toLowerCase().includes(normalizedSearch);
 
-      const matchesStore = storeFilter === 'all' || (profile.store || 'Sem loja') === storeFilter;
+      const matchesStore = storeFilter === 'all' || (getProfileStore(profile)) === storeFilter;
       const matchesStatus = statusFilter === 'all' || report.enrollments.some((enrollment) => enrollment.status === statusFilter);
 
       return matchesSearch && matchesStore && matchesStatus;
@@ -560,7 +572,7 @@ export default function AdminReportsPage() {
                           <p className="mt-2 text-xs text-[#ffb088]">{report.profile.role}</p>
                         </td>
                         <td className="border-y border-[#2d3a52] px-4 py-4">
-                          <p>{report.profile.store || 'Sem loja'}</p>
+                          <p>{getProfileStore(report.profile)}</p>
                           <p className="mt-1 text-xs text-zinc-400">{report.profile.position || 'Sem cargo'}</p>
                           <p className="mt-1 text-xs text-zinc-500">{report.profile.region || 'Sem região'}</p>
                         </td>

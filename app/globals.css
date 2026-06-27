@@ -268,3 +268,45 @@ a {
     background: #f36b2a !important;
   }
 }
+
+/* v1.8 — ajustes mobile-first */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+video,
+iframe,
+embed,
+object {
+  max-width: 100%;
+}
+
+table {
+  max-width: 100%;
+}
+
+.mobile-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-card-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .mobile-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .mobile-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
