@@ -22,7 +22,7 @@ type Lesson = {
   order_index: number;
 };
 
-type ContentType = 'text' | 'video' | 'pdf' | 'image' | 'mixed';
+type ContentType = 'text' | 'video' | 'pdf' | 'image' | 'link' | 'mixed';
 
 const contentTypes: { value: ContentType; label: string; helper: string }[] = [
   {
@@ -44,6 +44,11 @@ const contentTypes: { value: ContentType; label: string; helper: string }[] = [
     value: 'image',
     label: 'Imagem',
     helper: 'Use para banners, fluxogramas, checklists visuais e prints explicativos.',
+  },
+  {
+    value: 'link',
+    label: 'Link externo',
+    helper: 'Use para links de Google Drive, páginas internas, formulários ou materiais externos.',
   },
   {
     value: 'mixed',
@@ -91,6 +96,35 @@ function extractYouTubeId(url: string) {
 
 function isMp4(url: string) {
   return url.toLowerCase().split('?')[0].endsWith('.mp4');
+}
+
+function getBucketByContentType(contentType: ContentType) {
+  if (contentType === 'video') return 'course-videos';
+  if (contentType === 'pdf') return 'course-pdfs';
+  if (contentType === 'image') return 'course-images';
+  return 'course-materials';
+}
+
+function getMaterialType(contentType: ContentType) {
+  if (contentType === 'video') return 'video';
+  if (contentType === 'pdf') return 'pdf';
+  if (contentType === 'image') return 'image';
+  if (contentType === 'text') return 'text';
+  return 'link';
+}
+
+function sanitizeFileName(fileName: string) {
+  const extension = fileName.includes('.') ? fileName.split('.').pop() : '';
+  const baseName = fileName
+    .replace(/\.[^/.]+$/, '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 80);
+
+  return `${baseName || 'arquivo'}-${Date.now()}${extension ? `.${extension}` : ''}`;
 }
 
 function AdminContentPreview({
@@ -207,6 +241,8 @@ export default function AdminCourseLessonsPage() {
   const [textContent, setTextContent] = useState(emptyForm.textContent);
   const [durationMinutes, setDurationMinutes] = useState(emptyForm.durationMinutes);
   const [orderIndex, setOrderIndex] = useState(emptyForm.orderIndex);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -287,6 +323,7 @@ export default function AdminCourseLessonsPage() {
     setTextContent('');
     setDurationMinutes('10');
     setOrderIndex(String(nextOrder || lessons.length + 1));
+    setUploadFile(null);
   }
 
   function handleEditLesson(lesson: Lesson) {
@@ -300,7 +337,49 @@ export default function AdminCourseLessonsPage() {
     setTextContent(lesson.text_content || '');
     setDurationMinutes(String(lesson.duration_minutes ?? 0));
     setOrderIndex(String(lesson.order_index || lessons.length + 1));
+    setUploadFile(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function handleUploadFile() {
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    if (!uploadFile) {
+      setErrorMessage('Selecione um arquivo para enviar.');
+      return;
+    }
+
+    if (contentType === 'text') {
+      setErrorMessage('Para upload de arquivo, selecione Vídeo, PDF, Imagem, Link externo ou Misto.');
+      return;
+    }
+
+    setUploading(true);
+
+    const bucket = getBucketByContentType(contentType);
+    const filePath = `${courseId}/${sanitizeFileName(uploadFile.name)}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, uploadFile, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: uploadFile.type || undefined,
+      });
+
+    if (uploadError) {
+      setUploading(false);
+      setErrorMessage(`Erro ao enviar arquivo: ${uploadError.message}`);
+      return;
+    }
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+
+    setContentUrl(data.publicUrl);
+    setUploadFile(null);
+    setUploading(false);
+    setSuccessMessage('Arquivo enviado com sucesso. O link foi preenchido automaticamente. Salve a aula para gravar.');
   }
 
   async function handleSaveLesson() {
@@ -312,8 +391,8 @@ export default function AdminCourseLessonsPage() {
       return;
     }
 
-    if ((contentType === 'video' || contentType === 'pdf' || contentType === 'image') && !contentUrl.trim()) {
-      setErrorMessage('Para este tipo de conteúdo, informe o link do conteúdo.');
+    if ((contentType === 'video' || contentType === 'pdf' || contentType === 'image' || contentType === 'link') && !contentUrl.trim()) {
+      setErrorMessage('Para este tipo de conteúdo, informe o link do conteúdo ou envie um arquivo.');
       return;
     }
 
@@ -331,15 +410,34 @@ export default function AdminCourseLessonsPage() {
       is_required: true,
     };
 
-    const { error } = editingLessonId
-      ? await supabase.from('lessons').update(payload).eq('id', editingLessonId)
-      : await supabase.from('lessons').insert(payload);
+    const saveResult = editingLessonId
+      ? await supabase.from('lessons').update(payload).eq('id', editingLessonId).select('id').single()
+      : await supabase.from('lessons').insert(payload).select('id').single();
 
     setSaving(false);
 
-    if (error) {
-      setErrorMessage(`Erro ao salvar aula: ${error.message}`);
+    if (saveResult.error) {
+      setErrorMessage(`Erro ao salvar aula: ${saveResult.error.message}`);
       return;
+    }
+
+    const savedLessonId = editingLessonId || saveResult.data?.id;
+
+    if (savedLessonId && payload.content_url) {
+      await supabase
+        .from('materials')
+        .delete()
+        .eq('lesson_id', savedLessonId)
+        .eq('description', 'Conteúdo principal da aula');
+
+      await supabase.from('materials').insert({
+        course_id: courseId,
+        lesson_id: savedLessonId,
+        title: payload.title,
+        file_type: getMaterialType(contentType),
+        file_url: payload.content_url,
+        description: 'Conteúdo principal da aula',
+      });
     }
 
     setSuccessMessage(editingLessonId ? 'Aula atualizada com sucesso.' : 'Aula criada com sucesso.');
@@ -574,6 +672,48 @@ export default function AdminCourseLessonsPage() {
               {selectedType?.helper && (
                 <div className="rounded-3xl border border-[#2d3a52] bg-[#080c18]/60 p-4 text-sm leading-6 text-zinc-400">
                   <strong className="text-zinc-200">{selectedType.label}:</strong> {selectedType.helper}
+                </div>
+              )}
+
+              {contentType !== 'text' && (
+                <div className="rounded-3xl border border-[#2d3a52] bg-[#080c18]/60 p-5">
+                  <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                    <div>
+                      <p className="text-sm font-black text-white">Upload direto para o Supabase Storage</p>
+                      <p className="mt-1 text-sm leading-6 text-zinc-400">
+                        Envie vídeo, PDF, imagem ou material. O link público será preenchido automaticamente.
+                      </p>
+                      <p className="mt-2 text-xs font-bold text-[#ffb088]">
+                        Bucket: {getBucketByContentType(contentType)}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 md:min-w-[300px]">
+                      <input
+                        type="file"
+                        onChange={(event) => setUploadFile(event.target.files?.[0] || null)}
+                        accept={
+                          contentType === 'video'
+                            ? 'video/*'
+                            : contentType === 'pdf'
+                              ? 'application/pdf'
+                              : contentType === 'image'
+                                ? 'image/*'
+                                : undefined
+                        }
+                        className="rounded-2xl border border-[#2d3a52] bg-[#080c18] px-4 py-3 text-sm text-zinc-300 file:mr-4 file:rounded-full file:border-0 file:bg-[#f36b2a] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={handleUploadFile}
+                        disabled={uploading || !uploadFile}
+                        className="rounded-full border border-[#f36b2a]/40 bg-[#f36b2a]/10 px-5 py-3 text-sm font-bold text-[#ffb088] hover:bg-[#f36b2a]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {uploading ? 'Enviando...' : 'Enviar arquivo'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 

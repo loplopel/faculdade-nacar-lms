@@ -1,38 +1,10 @@
-ROADMAP LMS NACAR
+v1.7 - Uploads e biblioteca de materiais
+- Upload de vídeo, PDF, imagem e material no admin de aulas
+- Link público preenchido automaticamente
+- Material vinculado à aula e ao curso
+- Biblioteca real puxando do Supabase
 
-v1.1 — Estabilização
-- Separar corretamente aluno/admin
-- Corrigir aula do aluno
-- Corrigir player básico
-- Build estável
-
-v1.2 — Admin de Aulas Profissional
-- Criar, editar, excluir e reordenar aulas
-- Prévia do conteúdo no admin
-- Visualizar aula
-- Melhor suporte para vídeo/PDF/imagem/link
-
-v1.3 — Upload de Arquivos
-- Upload direto para Supabase Storage
-- Buckets organizados: course-videos, course-pdfs, course-images
-- Botão de upload no cadastro de aula
-- URL automática no campo da aula
-
-v1.4 — Usuários e Permissões
-- Admin cria usuários
-- Perfis: admin, gestor, instrutor, funcionário
-- Loja/cargo/status
-- Restringir telas por perfil
-
-v1.5 — Experiência do Aluno
-- Bloquear prova até concluir aulas
-- Progresso visual premium
-- Próxima aula automática
-- Trilha de cursos
-
-v2.0 — Produção Segura
-- RLS reativado no Supabase
-- Policies corretas
-- Domínio oficial
-- Logs e auditoria
-- Segurança de Storage
+Próximas versões recomendadas:
+v1.8 - Lojas, cargos, regiões e grupos reais
+v1.9 - Trilhas obrigatórias por perfil, loja e cargo
+v2.0 - Segurança real, RLS, API segura para criar usuários e domínio oficial

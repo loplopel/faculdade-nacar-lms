@@ -1,0 +1,29 @@
+FACULDADE NACAR LMS - v1.7
+Uploads e Biblioteca de Materiais
+
+1. Substitua a pasta next-app pelo conteúdo deste pacote.
+2. Rode no Supabase o SQL:
+   next-app/supabase/v1.7_storage_materials.sql
+3. Faça o push para o GitHub:
+   cd "C:\Users\rodri\OneDrive\Desktop\faculdade nacar\next-app"
+   git add .
+   git commit -m "v1.7 uploads e biblioteca de materiais"
+   git push
+4. Teste na Vercel:
+   /admin/cursos
+   /biblioteca
+
+O que testar:
+- Entrar no admin de aulas
+- Editar ou criar uma aula
+- Selecionar tipo Vídeo, PDF ou Imagem
+- Escolher arquivo no campo Upload direto para Supabase Storage
+- Clicar Enviar arquivo
+- Conferir se o link foi preenchido automaticamente
+- Salvar a aula
+- Abrir a aula como aluno
+- Abrir /biblioteca e conferir se o material aparece
+
+Observação:
+Os buckets ficam públicos nesta fase para facilitar testes.
+Na v2.0 vamos fechar segurança com RLS, policies por perfil e controle de acesso.

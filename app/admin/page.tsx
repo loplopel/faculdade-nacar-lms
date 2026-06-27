@@ -29,6 +29,11 @@ const actions = [
     description: 'Acompanhar matrículas, progresso, aprovações, certificados e pendências por colaborador e curso.',
     href: '/admin/relatorios',
   },
+  {
+    title: 'Biblioteca e materiais',
+    description: 'Consultar materiais enviados, vídeos, PDFs, imagens e links vinculados às aulas.',
+    href: '/biblioteca',
+  },
 ];
 
 export default function AdminPage() {
