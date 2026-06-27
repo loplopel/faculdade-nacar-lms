@@ -1,13 +1,26 @@
-ROADMAP LMS NACAR
+ROADMAP FACULDADE NACAR LMS
 
-v1.1 — Estabilização de aulas e conteúdo.
-v1.2 — Admin de aulas profissional.
-v1.3 — Conteúdo premium da aula.
-v1.4 — Usuários, perfis e permissões básicas.
-v1.5 — Matrículas e regras do aluno.
-v1.6 — Relatórios e acompanhamento do LMS.
-v1.7 — Uploads e biblioteca de materiais.
-v1.7.1 — Hotfix logout e relatórios.
-v1.8 — Lojas, cargos, grupos e visão mobile.
-v1.9 — Trilhas obrigatórias por loja, cargo e grupo.
-v2.0 — Segurança final, RLS, domínio e produção.
+v1.9 — Trilhas obrigatórias por loja, cargo, grupo e perfil
+- Tela /admin/trilhas
+- Regras de público
+- Cursos vinculados à trilha
+- Matrícula automática
+
+v2.0 — Segurança e produção real
+- RLS no Supabase
+- Políticas por perfil
+- Domínio oficial faculdade.nacar.com.br
+- Melhor controle de Storage
+- API segura para criação de usuário Auth + profile
+
+v2.1 — Experiência premium do aluno
+- Home do aluno mais forte
+- Trilha obrigatória destacada
+- Próximas aulas
+- Notificações e pendências
+
+v2.2 — Relatórios executivos
+- Exportação CSV
+- Indicadores por loja/cargo/grupo
+- Ranking de conclusão
+- Prazos e atrasos

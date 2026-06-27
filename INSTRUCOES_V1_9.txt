@@ -1,0 +1,48 @@
+FACULDADE NACAR LMS — v1.9
+Trilhas obrigatórias por loja, cargo, grupo e perfil
+
+1) Antes de testar, rode no Supabase:
+   next-app/supabase/v1.9_training_paths.sql
+
+2) Aplicar no projeto:
+   Extraia o ZIP dentro de:
+   C:\Users\rodri\OneDrive\Desktop\faculdade nacar
+
+3) Aplicação segura via PowerShell:
+   cd "C:\Users\rodri\OneDrive\Desktop\faculdade nacar"
+
+   Remove-Item -Recurse -Force ".\temp-v1.9" -ErrorAction SilentlyContinue
+
+   Expand-Archive `
+     -Path "$env:USERPROFILE\Downloads\faculdade-nacar-v1.9-completo-para-substituir.zip" `
+     -DestinationPath ".\temp-v1.9" `
+     -Force
+
+   robocopy ".\temp-v1.9\next-app" ".\next-app" /E /XD node_modules .next .git .vercel /XF .env.local
+
+   Remove-Item -Recurse -Force ".\temp-v1.9"
+
+4) Build:
+   cd "C:\Users\rodri\OneDrive\Desktop\faculdade nacar\next-app"
+   Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+   npm.cmd run build
+
+5) Deploy:
+   git add .
+   git commit -m "v1.9 trilhas obrigatorias"
+   git push
+
+6) Testar na Vercel:
+   /admin/trilhas
+   /admin
+   /admin/matriculas
+   /admin/relatorios
+   /cursos
+
+O que entrou:
+- Nova tela /admin/trilhas
+- Criar e editar trilhas
+- Definir público por todos, perfil, loja, cargo ou grupo
+- Vincular cursos à trilha
+- Aplicar trilha e matricular usuários automaticamente
+- Visão de público, cursos, matrículas, pendências e progresso médio

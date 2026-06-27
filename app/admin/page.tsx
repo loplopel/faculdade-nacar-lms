@@ -34,6 +34,12 @@ const actions = [
     description: 'Organizar colaboradores por grupos para preparar trilhas corporativas.',
     href: '/admin/grupos',
   },
+
+  {
+    title: 'Trilhas obrigatórias',
+    description: 'Criar trilhas de treinamento por loja, cargo, grupo ou perfil e matricular colaboradores automaticamente.',
+    href: '/admin/trilhas',
+  },
   {
     title: 'Matrículas e acessos',
     description: 'Liberar cursos para colaboradores, controlar status e acompanhar a jornada do aluno.',
@@ -63,7 +69,7 @@ export default function AdminPage() {
             Administração
           </h1>
           <p className="mt-3 max-w-3xl text-zinc-300">
-            Área de gestão dos cursos, categorias, aulas, provas, certificados, usuários, lojas, cargos, grupos e relatórios da Faculdade Nacar.
+            Área de gestão dos cursos, categorias, aulas, provas, certificados, usuários, lojas, cargos, grupos, trilhas obrigatórias e relatórios da Faculdade Nacar.
           </p>
         </div>
 
