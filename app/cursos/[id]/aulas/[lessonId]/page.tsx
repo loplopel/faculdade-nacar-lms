@@ -178,6 +178,31 @@ export default function LessonDetailPage() {
 
       const currentCourse = courseData as Course;
 
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+
+      const currentRole = String(profileData?.role || 'funcionario');
+      const isAdminView =
+        currentRole === 'admin' || currentRole === 'gestor' || currentRole === 'instrutor';
+
+      if (!isAdminView) {
+        const { data: enrollmentData } = await supabase
+          .from('enrollments')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('course_id', currentCourse.id)
+          .maybeSingle();
+
+        if (!enrollmentData) {
+          setErrorMessage('Você ainda não está matriculado neste curso. Peça liberação para um administrador.');
+          setLoading(false);
+          return;
+        }
+      }
+
       const { data: lessonsData, error: lessonsError } = await supabase
         .from('lessons')
         .select(
@@ -281,9 +306,28 @@ export default function LessonDetailPage() {
     }
 
     setCompleted(true);
-    setCompletedLessonIds((current) =>
-      current.includes(lesson.id) ? current : [...current, lesson.id]
-    );
+
+    const nextCompletedLessonIds = completedLessonIds.includes(lesson.id)
+      ? completedLessonIds
+      : [...completedLessonIds, lesson.id];
+
+    setCompletedLessonIds(nextCompletedLessonIds);
+
+    const nextProgress = lessons.length
+      ? Math.round((nextCompletedLessonIds.length / lessons.length) * 100)
+      : 0;
+
+    await supabase
+      .from('enrollments')
+      .update({
+        progress: nextProgress,
+        status: nextProgress >= 100 ? 'completed' : 'in_progress',
+        started_at: new Date().toISOString(),
+        completed_at: nextProgress >= 100 ? new Date().toISOString() : null,
+      })
+      .eq('user_id', userId)
+      .eq('course_id', course.id);
+
     setProgressMessage('Aula concluída com sucesso.');
   }
 

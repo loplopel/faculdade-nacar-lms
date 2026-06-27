@@ -61,11 +61,13 @@ export default function ExamPage() {
   const [attemptsUsed, setAttemptsUsed] = useState(0);
   const [alreadyPassed, setAlreadyPassed] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [gateMessage, setGateMessage] = useState("");
 
   useEffect(() => {
     async function loadExam() {
       setLoading(true);
       setErrorMessage("");
+      setGateMessage("");
 
       const currentUserId = await getCurrentUserId();
 
@@ -75,6 +77,22 @@ export default function ExamPage() {
       }
 
       setUserId(currentUserId);
+
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, role, is_active")
+        .eq("id", currentUserId)
+        .single();
+
+      if (profileError || !profileData) {
+        setErrorMessage(profileError?.message || "Seu perfil não foi encontrado.");
+        setLoading(false);
+        return;
+      }
+
+      const currentRole = String(profileData.role || "funcionario");
+      const isAdminView =
+        currentRole === "admin" || currentRole === "gestor" || currentRole === "instrutor";
 
       const { data: examData, error: examError } = await supabase
         .from("exams")
@@ -101,6 +119,73 @@ export default function ExamPage() {
         );
         setLoading(false);
         return;
+      }
+
+      const normalizedExam = examData as Exam;
+
+      const { data: enrollmentData } = await supabase
+        .from("enrollments")
+        .select("id, status, progress")
+        .eq("user_id", currentUserId)
+        .eq("course_id", normalizedExam.course_id)
+        .maybeSingle();
+
+      if (!isAdminView && !enrollmentData) {
+        setGateMessage("Você ainda não está matriculado neste curso. Peça liberação para um administrador.");
+        setExam(normalizedExam);
+        setLoading(false);
+        return;
+      }
+
+      const { data: courseLessonsData, error: courseLessonsError } = await supabase
+        .from("lessons")
+        .select("id")
+        .eq("course_id", normalizedExam.course_id);
+
+      if (courseLessonsError) {
+        setErrorMessage(`Erro ao validar aulas do curso: ${courseLessonsError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      const lessonIds = (courseLessonsData || []).map((lesson) => lesson.id);
+
+      if (lessonIds.length > 0) {
+        const { data: completedLessonsData, error: completedLessonsError } = await supabase
+          .from("lesson_progress")
+          .select("lesson_id")
+          .eq("user_id", currentUserId)
+          .eq("is_completed", true)
+          .in("lesson_id", lessonIds);
+
+        if (completedLessonsError) {
+          setErrorMessage(`Erro ao validar progresso: ${completedLessonsError.message}`);
+          setLoading(false);
+          return;
+        }
+
+        const completedCount = completedLessonsData?.length || 0;
+        const courseProgress = Math.round((completedCount / lessonIds.length) * 100);
+
+        if (enrollmentData) {
+          await supabase
+            .from("enrollments")
+            .update({
+              progress: courseProgress,
+              status: courseProgress >= 100 ? "completed" : courseProgress > 0 ? "in_progress" : enrollmentData.status,
+              completed_at: courseProgress >= 100 ? new Date().toISOString() : null,
+            })
+            .eq("id", enrollmentData.id);
+        }
+
+        if (completedCount < lessonIds.length) {
+          setGateMessage(
+            `A prova só será liberada após concluir todas as aulas. Progresso atual: ${completedCount} de ${lessonIds.length} aulas.`,
+          );
+          setExam(normalizedExam);
+          setLoading(false);
+          return;
+        }
       }
 
       const { data: questionsData, error: questionsError } = await supabase
@@ -167,7 +252,7 @@ export default function ExamPage() {
         });
       }
 
-      setExam(examData as Exam);
+      setExam(normalizedExam);
       setQuestions(normalizedQuestions);
       setLoading(false);
     }
@@ -298,6 +383,28 @@ export default function ExamPage() {
           onConflict: "user_id,course_id",
         },
       );
+
+      await supabase
+        .from("enrollments")
+        .update({
+          status: "approved",
+          progress: 100,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("user_id", currentUserId)
+        .eq("course_id", exam.course_id);
+    }
+
+    if (status === "failed") {
+      await supabase
+        .from("enrollments")
+        .update({
+          status: "failed",
+          progress: 100,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("user_id", currentUserId)
+        .eq("course_id", exam.course_id);
     }
 
     setResult({
@@ -334,7 +441,21 @@ export default function ExamPage() {
             </div>
           )}
 
-          {!loading && exam && (
+          {!loading && gateMessage && exam && (
+            <div className="rounded-3xl border border-[#f36b2a]/40 bg-[#f36b2a]/10 p-6 text-[#ffb088]">
+              <p className="text-sm font-bold uppercase tracking-[0.25em]">Prova bloqueada</p>
+              <h1 className="mt-3 text-2xl font-black text-white">Conclua a etapa anterior antes de fazer a avaliação.</h1>
+              <p className="mt-3 text-sm leading-6 text-zinc-300">{gateMessage}</p>
+              <a
+                href={getCourse(exam)?.slug ? `/cursos/${getCourse(exam)?.slug}` : "/cursos"}
+                className="mt-6 inline-block rounded-full bg-[#f36b2a] px-5 py-3 text-sm font-bold text-white hover:bg-[#ff6a24]"
+              >
+                Voltar para o curso
+              </a>
+            </div>
+          )}
+
+          {!loading && exam && !gateMessage && (
             <>
               <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                 <div>

@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUserId } from '../../../lib/auth';
 
+type Role = 'admin' | 'gestor' | 'instrutor' | 'funcionario';
+
 type CourseCategory =
   | {
       name: string;
@@ -13,6 +15,22 @@ type CourseCategory =
       name: string;
     }[]
   | null;
+
+type CurrentProfile = {
+  id: string;
+  full_name: string;
+  email: string;
+  role: Role;
+  is_active: boolean | null;
+};
+
+type Enrollment = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  status: string;
+  progress: number | null;
+};
 
 type Course = {
   id: string;
@@ -52,21 +70,46 @@ function getCategoryName(course: Course) {
   return course.course_categories?.name || 'Sem categoria';
 }
 
+function canSeeAllCourses(profile: CurrentProfile | null) {
+  return profile?.role === 'admin' || profile?.role === 'gestor' || profile?.role === 'instrutor';
+}
+
+function enrollmentLabel(status: string | null) {
+  switch (status) {
+    case 'in_progress':
+      return 'Em andamento';
+    case 'completed':
+      return 'Aulas concluídas';
+    case 'approved':
+      return 'Aprovado';
+    case 'failed':
+      return 'Reprovado';
+    case 'not_started':
+      return 'Liberado';
+    default:
+      return 'Acesso administrativo';
+  }
+}
+
 export default function CourseDetailPage() {
   const params = useParams();
   const slug = String(params.id);
 
+  const [currentProfile, setCurrentProfile] = useState<CurrentProfile | null>(null);
+  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [exam, setExam] = useState<Exam | null>(null);
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     async function loadCourse() {
       setLoading(true);
       setErrorMessage('');
+      setAccessDenied(false);
 
       const userId = await getCurrentUserId();
 
@@ -74,6 +117,21 @@ export default function CourseDetailPage() {
         window.location.href = '/login';
         return;
       }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role, is_active')
+        .eq('id', userId)
+        .single();
+
+      if (profileError || !profileData) {
+        setErrorMessage(profileError?.message || 'Seu perfil não foi encontrado.');
+        setLoading(false);
+        return;
+      }
+
+      const profile = profileData as CurrentProfile;
+      setCurrentProfile(profile);
 
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
@@ -101,6 +159,23 @@ export default function CourseDetailPage() {
 
       const currentCourse = courseData as Course;
       setCourse(currentCourse);
+
+      const { data: enrollmentData } = await supabase
+        .from('enrollments')
+        .select('id, user_id, course_id, status, progress')
+        .eq('user_id', userId)
+        .eq('course_id', currentCourse.id)
+        .maybeSingle();
+
+      if (enrollmentData) {
+        setEnrollment(enrollmentData as Enrollment);
+      }
+
+      if (!canSeeAllCourses(profile) && !enrollmentData) {
+        setAccessDenied(true);
+        setLoading(false);
+        return;
+      }
 
       const { data: examData } = await supabase
         .from('exams')
@@ -138,6 +213,7 @@ export default function CourseDetailPage() {
       setLessons(currentLessons);
 
       const lessonIds = currentLessons.map((lesson) => lesson.id);
+      let currentCompletedLessonIds: string[] = [];
 
       if (lessonIds.length > 0) {
         const { data: progressData, error: progressError } = await supabase
@@ -148,8 +224,35 @@ export default function CourseDetailPage() {
           .in('lesson_id', lessonIds);
 
         if (!progressError) {
-          setCompletedLessonIds((progressData || []).map((item) => item.lesson_id));
+          currentCompletedLessonIds = (progressData || []).map((item) => item.lesson_id);
+          setCompletedLessonIds(currentCompletedLessonIds);
         }
+      }
+
+      if (enrollmentData) {
+        const calculatedProgress =
+          currentLessons.length > 0
+            ? Math.round((currentCompletedLessonIds.length / currentLessons.length) * 100)
+            : 0;
+
+        const nextStatus =
+          calculatedProgress >= 100
+            ? 'completed'
+            : calculatedProgress > 0
+              ? 'in_progress'
+              : enrollmentData.status || 'not_started';
+
+        await supabase
+          .from('enrollments')
+          .update({
+            progress: calculatedProgress,
+            status: nextStatus,
+            started_at: nextStatus === 'in_progress' ? new Date().toISOString() : undefined,
+            completed_at: nextStatus === 'completed' ? new Date().toISOString() : null,
+          })
+          .eq('id', enrollmentData.id);
+
+        setEnrollment({ ...(enrollmentData as Enrollment), progress: calculatedProgress, status: nextStatus });
       }
 
       setLoading(false);
@@ -178,9 +281,31 @@ export default function CourseDetailPage() {
     );
   }
 
+  if (accessDenied) {
+    return (
+      <main className="min-h-screen p-6 text-white md:p-10">
+        <div className="mx-auto max-w-4xl rounded-[2rem] border border-[#f36b2a]/40 bg-[#f36b2a]/10 p-8 text-[#ffb088]">
+          <p className="text-sm uppercase tracking-[0.35em]">Acesso não liberado</p>
+          <h1 className="mt-4 text-3xl font-black text-white">Você ainda não está matriculado neste curso.</h1>
+          <p className="mt-3 text-sm leading-6 text-zinc-300">
+            Peça para um administrador liberar sua matrícula em Administração &gt; Matrículas e acessos.
+          </p>
+          <a
+            href="/cursos"
+            className="mt-6 inline-block rounded-full bg-[#f36b2a] px-5 py-3 text-sm font-bold text-white hover:bg-[#ff6a24]"
+          >
+            Voltar para meus cursos
+          </a>
+        </div>
+      </main>
+    );
+  }
+
   const completedLessons = completedLessonIds.length;
   const progress =
     lessons.length > 0 ? Math.round((completedLessons / lessons.length) * 100) : 0;
+  const allLessonsCompleted = lessons.length > 0 && completedLessons >= lessons.length;
+  const isAdminView = canSeeAllCourses(currentProfile);
 
   return (
     <main className="min-h-screen p-6 text-white md:p-10">
@@ -214,9 +339,7 @@ export default function CourseDetailPage() {
                 </span>
 
                 <span className="rounded-full bg-[#080c18]/70 px-4 py-2">
-                  {course.certificate_enabled
-                    ? 'Certificado liberado'
-                    : 'Sem certificado'}
+                  {enrollmentLabel(enrollment?.status || null)}
                 </span>
               </div>
             </div>
@@ -234,13 +357,21 @@ export default function CourseDetailPage() {
                 />
               </div>
 
-              {exam ? (
+              {exam && allLessonsCompleted ? (
                 <a
                   href={`/provas/${exam.id}`}
                   className="mt-6 block rounded-full bg-[#f36b2a] px-5 py-3 text-center text-sm font-bold shadow-[0_0_20px_rgba(243,107,42,0.25)] hover:bg-[#ff6a24]"
                 >
                   Fazer prova
                 </a>
+              ) : exam ? (
+                <button
+                  type="button"
+                  disabled
+                  className="mt-6 block w-full cursor-not-allowed rounded-full bg-zinc-700 px-5 py-3 text-center text-sm font-bold text-zinc-400"
+                >
+                  Conclua todas as aulas para liberar a prova
+                </button>
               ) : (
                 <button
                   type="button"
@@ -259,7 +390,7 @@ export default function CourseDetailPage() {
             <div className="mb-4">
               <h2 className="text-2xl font-black">Aulas do curso</h2>
               <p className="mt-1 text-sm text-zinc-400">
-                Conteúdos cadastrados no Supabase para este treinamento.
+                Conteúdos liberados para este treinamento.
               </p>
             </div>
 
@@ -351,10 +482,15 @@ export default function CourseDetailPage() {
             <div className="mt-6 rounded-2xl border border-[#f36b2a]/30 bg-[#f36b2a]/10 p-4">
               <p className="font-bold text-[#ffb088]">Regra de aprovação</p>
               <p className="mt-2 text-sm leading-6 text-zinc-300">
-                Para concluir este curso, o colaborador precisa finalizar todas
-                as aulas e atingir a nota mínima na avaliação.
+                Para liberar a prova, o colaborador precisa concluir todas as aulas. Depois, precisa atingir a nota mínima na avaliação.
               </p>
             </div>
+
+            {isAdminView && (
+              <div className="mt-5 rounded-2xl border border-[#2d3a52] bg-[#080c18]/60 p-4 text-sm text-zinc-400">
+                Visualização administrativa: você pode acessar o curso mesmo sem matrícula.
+              </div>
+            )}
           </aside>
         </div>
       </div>

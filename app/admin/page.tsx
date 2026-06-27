@@ -20,6 +20,11 @@ const actions = [
     href: '/admin/usuarios',
   },
   {
+    title: 'Matrículas e acessos',
+    description: 'Liberar cursos para colaboradores, controlar status e acompanhar a jornada do aluno.',
+    href: '/admin/matriculas',
+  },
+  {
     title: 'Relatórios',
     description: 'Ver notas, cursos concluídos, pendências e ranking por loja. Em breve.',
     href: '/admin',
