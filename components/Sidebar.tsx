@@ -1,15 +1,24 @@
+'use client';
+
+import { supabase } from '../lib/supabaseClient';
+
 const menuItems = [
-  { label: "Dashboard", href: "/" },
-  { label: "Meus cursos", href: "/cursos" },
-  { label: "Provas e notas", href: "/provas" },
+  { label: 'Dashboard', href: '/' },
+  { label: 'Meus cursos', href: '/cursos' },
+  { label: 'Provas e notas', href: '/provas' },
   { label: 'Certificados', href: '/certificados' },
-  { label: "Biblioteca", href: "/biblioteca" },
-  { label: "Administração", href: "/admin" },
+  { label: 'Biblioteca', href: '/biblioteca' },
+  { label: 'Administração', href: '/admin' },
 ];
 
 export default function Sidebar() {
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  }
+
   return (
-    <aside className="hidden min-h-screen w-72 border-r border-[#2d3a52] bg-[#080c18]/90 p-6 shadow-2xl lg:block">
+    <aside className="hidden min-h-screen w-72 flex-col border-r border-[#2d3a52] bg-[#080c18]/90 p-6 shadow-2xl lg:flex">
       <div className="mb-10">
         <p className="text-xs uppercase tracking-[0.4em] text-[#f36b2a]">
           Grupo Nacar
@@ -46,6 +55,20 @@ export default function Sidebar() {
         <p className="text-sm font-semibold text-[#ffb088]">Próxima missão</p>
         <p className="mt-2 text-sm leading-6 text-zinc-300">
           Finalizar o treinamento de atendimento e realizar a prova final.
+        </p>
+      </div>
+
+      <div className="mt-auto pt-6">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-100 transition hover:border-red-400 hover:bg-red-500/20 hover:text-white"
+        >
+          Sair do LMS
+        </button>
+
+        <p className="mt-3 text-center text-xs text-zinc-500">
+          Use para trocar de usuário com segurança.
         </p>
       </div>
     </aside>

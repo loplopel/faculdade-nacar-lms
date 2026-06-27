@@ -448,7 +448,7 @@ export default function AdminReportsPage() {
                   <div className="rounded-2xl border border-[#2d3a52] bg-[#080c18]/60 p-4">
                     <p className="text-sm text-zinc-400">Progresso médio</p>
                     <p className="mt-2 text-3xl font-black">{averageEnrollmentProgress}%</p>
-                    <div className="mt-4 h-2 rounded-full bg-white/10">
+                    <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
                       <div className="h-2 rounded-full bg-[#f36b2a]" style={{ width: `${averageEnrollmentProgress}%` }} />
                     </div>
                   </div>
@@ -602,12 +602,12 @@ export default function AdminReportsPage() {
                     </div>
                   )}
                   {topCourses.map((report) => {
-                    const courseProgress = percent(report.certificates.length, report.enrollments.length);
+                    const courseProgress = Math.min(100, Math.max(0, percent(report.certificates.length, report.enrollments.length)));
                     return (
-                      <article key={report.course.id} className="rounded-2xl border border-[#2d3a52] bg-[#080c18]/60 p-5">
-                        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-                          <div>
-                            <h3 className="font-black">{report.course.title}</h3>
+                      <article key={report.course.id} className="min-w-0 overflow-hidden rounded-2xl border border-[#2d3a52] bg-[#080c18]/60 p-5">
+                        <div className="flex min-w-0 flex-col justify-between gap-3 md:flex-row md:items-center">
+                          <div className="min-w-0">
+                            <h3 className="break-words font-black">{report.course.title}</h3>
                             <p className="mt-1 text-xs text-zinc-400">
                               {report.enrollments.length} matrícula(s) • {report.lessonsCount} aula(s) • média {report.averageScore}%
                             </p>
@@ -616,8 +616,8 @@ export default function AdminReportsPage() {
                             Ver curso
                           </a>
                         </div>
-                        <div className="mt-4 h-2 rounded-full bg-white/10">
-                          <div className="h-2 rounded-full bg-[#f36b2a]" style={{ width: `${courseProgress}%` }} />
+                        <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                          <div className="h-2 max-w-full rounded-full bg-[#f36b2a]" style={{ width: `${courseProgress}%` }} />
                         </div>
                         <p className="mt-2 text-xs text-zinc-500">{courseProgress}% das matrículas com certificado emitido</p>
                       </article>
