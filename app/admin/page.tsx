@@ -26,8 +26,8 @@ const actions = [
   },
   {
     title: 'Relatórios',
-    description: 'Ver notas, cursos concluídos, pendências e ranking por loja. Em breve.',
-    href: '/admin',
+    description: 'Acompanhar matrículas, progresso, aprovações, certificados e pendências por colaborador e curso.',
+    href: '/admin/relatorios',
   },
 ];
 
