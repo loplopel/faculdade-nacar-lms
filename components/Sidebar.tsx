@@ -1,16 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
+import { canAccessAdmin, type CurrentProfile } from '../lib/auth';
 
-const menuItems = [
+const baseMenuItems = [
   { label: 'Dashboard', href: '/' },
   { label: 'Meus cursos', href: '/cursos' },
   { label: 'Provas e notas', href: '/provas' },
   { label: 'Certificados', href: '/certificados' },
   { label: 'Biblioteca', href: '/biblioteca' },
-  { label: 'Administração', href: '/admin' },
 ];
 
 function isActivePath(pathname: string, href: string) {
@@ -18,9 +18,24 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export default function Sidebar() {
+function getRoleLabel(role?: string | null) {
+  if (role === 'admin') return 'Administrador';
+  if (role === 'gestor') return 'Gestor';
+  if (role === 'instrutor') return 'Instrutor';
+  return 'Funcionário';
+}
+
+export default function Sidebar({ currentProfile }: { currentProfile?: CurrentProfile | null }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const menuItems = useMemo(() => {
+    if (canAccessAdmin(currentProfile?.role)) {
+      return [...baseMenuItems, { label: 'Administração', href: '/admin' }];
+    }
+
+    return baseMenuItems;
+  }, [currentProfile?.role]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -52,6 +67,17 @@ export default function Sidebar() {
           dos colaboradores.
         </p>
       </div>
+
+      {currentProfile && (
+        <div className="mb-5 rounded-2xl border border-[#2d3a52] bg-white/5 p-4">
+          <p className="text-sm font-bold text-white">
+            {currentProfile.full_name || 'Usuário Nacar'}
+          </p>
+          <p className="mt-1 text-xs uppercase tracking-[0.22em] text-[#f36b2a]">
+            {getRoleLabel(currentProfile.role)}
+          </p>
+        </div>
+      )}
 
       <nav className="space-y-2 text-sm">
         {menuItems.map((item) => {

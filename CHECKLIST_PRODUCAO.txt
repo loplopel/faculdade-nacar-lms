@@ -1,0 +1,17 @@
+CHECKLIST PRODUCAO - FACULDADE NACAR LMS V2.0
+
+[ ] Build local passou
+[ ] Git push feito
+[ ] Deploy Vercel publicado
+[ ] Login admin funcionando
+[ ] SQL v2.0_security_rls.sql rodado no Supabase
+[ ] Admin acessa /admin
+[ ] Funcionario nao acessa /admin
+[ ] Funcionario ve apenas os proprios cursos
+[ ] Funcionario ve apenas proprias provas e certificados
+[ ] Admin consegue criar/editar curso
+[ ] Admin consegue criar/editar matricula
+[ ] Admin consegue aplicar trilha obrigatoria
+[ ] Upload de material testado
+[ ] Mobile testado
+[ ] Dominio oficial ainda pendente para fase final

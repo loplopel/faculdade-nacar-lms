@@ -1,0 +1,29 @@
+FACULDADE NACAR LMS - V2.0 SEGURANCA E PRODUCAO
+
+ORDEM CORRETA:
+
+1) Aplique o ZIP v2.0 na pasta next-app.
+2) Rode npm.cmd run build.
+3) Se passar, faca git add, commit e push.
+4) Aguarde o deploy da Vercel.
+5) Teste login admin na Vercel antes de mexer no banco.
+6) So depois rode o SQL supabase/v2.0_security_rls.sql no Supabase.
+7) Teste admin e funcionario.
+
+NAO RODAR O SQL ANTES DO BUILD E DO DEPLOY.
+
+TESTES PRINCIPAIS:
+/admin
+/admin/seguranca
+/admin/usuarios
+/admin/matriculas
+/admin/trilhas
+/admin/relatorios
+/cursos
+/provas
+/certificados
+/biblioteca
+
+SE TRAVAR O SISTEMA:
+Rode temporariamente supabase/v2.0_rollback_dev_permissions.sql no Supabase.
+Depois avise o erro para ajustar a policy correta.

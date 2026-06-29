@@ -41,6 +41,11 @@ const actions = [
     href: '/admin/trilhas',
   },
   {
+    title: 'Segurança e produção',
+    description: 'Checklist da v2.0, permissões por perfil, RLS e passos seguros antes do domínio oficial.',
+    href: '/admin/seguranca',
+  },
+  {
     title: 'Matrículas e acessos',
     description: 'Liberar cursos para colaboradores, controlar status e acompanhar a jornada do aluno.',
     href: '/admin/matriculas',
