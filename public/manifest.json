@@ -1,10 +1,17 @@
 {
   "name": "Faculdade Nacar",
   "short_name": "Nacar LMS",
-  "description": "Portal de treinamento e conhecimento do Grupo Nacar",
+  "description": "Portal oficial de treinamento, trilhas, provas e certificados do Grupo Nacar",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#080c18",
   "theme_color": "#f36b2a",
-  "icons": []
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml"
+    }
+  ]
 }

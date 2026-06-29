@@ -1,0 +1,21 @@
+FACULDADE NACAR — v2.1
+
+Objetivo da versão:
+- Acabamento final de produção.
+- Login mais institucional e responsivo.
+- Mensagens de login mais claras.
+- Redirecionamento por perfil depois do login.
+- Favicon e manifest do PWA ajustados.
+- Nova tela /admin/producao com checklist do domínio oficial.
+
+Ordem de aplicação:
+1. Substituir a pasta next-app pelo ZIP v2.1.
+2. Rodar npm.cmd run build.
+3. Se passar, fazer git add ., git commit e git push.
+4. Aguardar deploy da Vercel.
+5. Testar login, /admin, /admin/producao, /cursos, /biblioteca e mobile.
+
+Observação:
+- Esta versão não exige SQL novo.
+- O SQL v2.0_security_rls.sql já deve permanecer aplicado no Supabase.
+- O domínio faculdade.nacar.com.br deve ser configurado na Vercel e no painel DNS oficial.

@@ -3,8 +3,16 @@ import type { Metadata } from 'next';
 import AppShell from '../components/AppShell';
 
 export const metadata: Metadata = {
-  title: 'Faculdade Nacar',
-  description: 'Portal de treinamento e conhecimento do Grupo Nacar',
+  title: {
+    default: 'Faculdade Nacar',
+    template: '%s | Faculdade Nacar',
+  },
+  description: 'Portal oficial de treinamento, trilhas, provas e certificados do Grupo Nacar.',
+  applicationName: 'Faculdade Nacar',
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({

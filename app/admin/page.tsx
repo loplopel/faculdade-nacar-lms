@@ -46,6 +46,11 @@ const actions = [
     href: '/admin/seguranca',
   },
   {
+    title: 'Produção final e domínio',
+    description: 'Checklist da v2.1, validação mobile, backup estável e preparo do domínio faculdade.nacar.com.br.',
+    href: '/admin/producao',
+  },
+  {
     title: 'Matrículas e acessos',
     description: 'Liberar cursos para colaboradores, controlar status e acompanhar a jornada do aluno.',
     href: '/admin/matriculas',

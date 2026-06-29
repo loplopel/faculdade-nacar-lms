@@ -310,3 +310,27 @@ table {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* v2.1 — acabamento de produção */
+:root {
+  color-scheme: dark;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 640px) {
+  main {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  h1 {
+    word-break: keep-all;
+  }
+}

@@ -1,0 +1,25 @@
+CHECKLIST DOMÍNIO — faculdade.nacar.com.br
+
+1. Vercel
+[ ] Abrir projeto faculdade-nacar-lms.
+[ ] Ir em Settings > Domains.
+[ ] Adicionar faculdade.nacar.com.br.
+[ ] Copiar o registro DNS solicitado pela Vercel.
+
+2. DNS
+[ ] Acessar o painel DNS do domínio nacar.com.br.
+[ ] Criar o registro exatamente como a Vercel pedir.
+[ ] Aguardar propagação.
+
+3. Testes
+[ ] Abrir https://faculdade.nacar.com.br.
+[ ] Testar login admin.
+[ ] Testar usuário funcionário.
+[ ] Testar /cursos.
+[ ] Testar /admin.
+[ ] Testar /admin/producao.
+[ ] Testar no celular.
+
+4. Backup
+[ ] Gerar backup da v2.1 validada.
+[ ] Guardar backup-v2.0-segura.zip.
