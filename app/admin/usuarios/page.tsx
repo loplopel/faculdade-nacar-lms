@@ -44,9 +44,9 @@ type CurrentProfile = {
 };
 
 const emptyForm = {
-  id: '',
   fullName: '',
   email: '',
+  password: '',
   role: 'funcionario' as Role,
   position: '',
   storeId: '',
@@ -123,9 +123,9 @@ export default function AdminUsersPage() {
   const [stores, setStores] = useState<StoreInfo[]>([]);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
 
-  const [id, setId] = useState(emptyForm.id);
   const [fullName, setFullName] = useState(emptyForm.fullName);
   const [email, setEmail] = useState(emptyForm.email);
+  const [password, setPassword] = useState(emptyForm.password);
   const [role, setRole] = useState<Role>(emptyForm.role);
   const [position, setPosition] = useState(emptyForm.position);
   const [storeId, setStoreId] = useState(emptyForm.storeId);
@@ -237,9 +237,7 @@ export default function AdminUsersPage() {
       .order('full_name', { ascending: true });
 
     if (profilesError) {
-      setErrorMessage(
-        `Erro ao buscar usuários: ${profilesError.message}. Se aparecer coluna não encontrada, rode o SQL da v1.4 no Supabase.`
-      );
+      setErrorMessage(`Erro ao buscar usuários: ${profilesError.message}.`);
       setLoading(false);
       return;
     }
@@ -256,9 +254,9 @@ export default function AdminUsersPage() {
 
   function resetForm() {
     setEditingProfileId(null);
-    setId('');
     setFullName('');
     setEmail('');
+    setPassword('');
     setRole('funcionario');
     setPosition('');
     setStoreId('');
@@ -274,9 +272,9 @@ export default function AdminUsersPage() {
     setSuccessMessage('');
     setErrorMessage('');
     setEditingProfileId(profile.id);
-    setId(profile.id || '');
     setFullName(profile.full_name || '');
     setEmail(profile.email || '');
+    setPassword('');
     setRole(profile.role || 'funcionario');
     setPosition(profile.position || '');
     setStoreId(profile.store_id || '');
@@ -289,29 +287,51 @@ export default function AdminUsersPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  async function handleSaveProfile() {
-    setSuccessMessage('');
-    setErrorMessage('');
+  async function getAccessToken() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (!id.trim()) {
-      setErrorMessage('Informe o User UID do usuário criado no Supabase Auth.');
-      return;
+    return session?.access_token || '';
+  }
+
+  async function handleCreateUser() {
+    const accessToken = await getAccessToken();
+
+    const response = await fetch('/api/admin/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        fullName,
+        email,
+        password,
+        role,
+        position,
+        storeId,
+        region,
+        sellerName,
+        phone,
+        whatsapp,
+        situation,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Erro ao criar usuário.');
     }
 
-    if (!fullName.trim()) {
-      setErrorMessage('Informe o nome do usuário.');
-      return;
-    }
+    return result;
+  }
 
-    if (!email.trim()) {
-      setErrorMessage('Informe o e-mail do usuário.');
-      return;
-    }
-
-    setSaving(true);
+  async function handleUpdateProfile() {
+    if (!editingProfileId) return;
 
     const payload = {
-      id: id.trim(),
       full_name: fullName.trim(),
       email: email.trim().toLowerCase(),
       role,
@@ -326,22 +346,91 @@ export default function AdminUsersPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from('profiles').upsert(payload, {
-      onConflict: 'id',
-    });
-
-    setSaving(false);
+    const { error } = await supabase.from('profiles').update(payload).eq('id', editingProfileId);
 
     if (error) {
-      setErrorMessage(
-        `Erro ao salvar usuário: ${error.message}. Confirme se o User UID existe em Authentication > Users e se o SQL da v1.4 foi rodado.`
-      );
+      throw new Error(error.message);
+    }
+  }
+
+  async function handleSaveProfile() {
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    if (!fullName.trim()) {
+      setErrorMessage('Informe o nome do usuário.');
       return;
     }
 
-    setSuccessMessage(editingProfileId ? 'Usuário atualizado com sucesso.' : 'Perfil cadastrado com sucesso.');
-    resetForm();
-    await loadData();
+    if (!email.trim()) {
+      setErrorMessage('Informe o e-mail do usuário.');
+      return;
+    }
+
+    if (!editingProfileId && password.trim().length < 6) {
+      setErrorMessage('Informe uma senha inicial com pelo menos 6 caracteres.');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      if (editingProfileId) {
+        await handleUpdateProfile();
+        setSuccessMessage('Usuário atualizado com sucesso.');
+      } else {
+        const result = await handleCreateUser();
+        setSuccessMessage(`Usuário criado com sucesso. UID: ${result.userId}`);
+      }
+
+      resetForm();
+      await loadData();
+    } catch (error) {
+      setErrorMessage(`Erro ao salvar usuário: ${error instanceof Error ? error.message : 'Erro inesperado.'}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleResetPassword(profile: Profile) {
+    const newPassword = window.prompt(
+      `Digite a nova senha inicial para ${profile.full_name}. Use pelo menos 6 caracteres.`
+    );
+
+    if (!newPassword) return;
+
+    if (newPassword.trim().length < 6) {
+      setErrorMessage('A nova senha precisa ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    try {
+      const accessToken = await getAccessToken();
+      const response = await fetch('/api/admin/users/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          userId: profile.id,
+          password: newPassword.trim(),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao redefinir senha.');
+      }
+
+      setSuccessMessage(`Senha de ${profile.full_name} redefinida com sucesso.`);
+    } catch (error) {
+      setErrorMessage(`Erro ao redefinir senha: ${error instanceof Error ? error.message : 'Erro inesperado.'}`);
+    }
   }
 
   async function handleToggleActive(profile: Profile) {
@@ -376,7 +465,7 @@ export default function AdminUsersPage() {
     }
 
     const confirmed = window.confirm(
-      `Tem certeza que deseja excluir o perfil de ${profile.full_name}? Isso não exclui o login em Authentication, apenas o cadastro interno do LMS.`
+      `Tem certeza que deseja excluir o perfil de ${profile.full_name}? Isso não exclui o login de acesso, apenas o cadastro interno do LMS.`
     );
 
     if (!confirmed) return;
@@ -391,7 +480,7 @@ export default function AdminUsersPage() {
       return;
     }
 
-    setSuccessMessage('Perfil excluído com sucesso. O usuário do Supabase Auth não foi removido.');
+    setSuccessMessage('Perfil excluído com sucesso.');
     await loadData();
   }
 
@@ -417,18 +506,17 @@ export default function AdminUsersPage() {
                 Administração de usuários
               </p>
               <h1 className="mt-4 text-4xl font-black md:text-5xl">
-                Usuários e perfis
+                Usuários e acessos
               </h1>
               <p className="mt-4 max-w-3xl text-zinc-300">
-                Cadastre e organize os perfis internos da Faculdade Nacar por cargo, loja,
+                Crie o login, defina a senha inicial e organize os perfis internos da Faculdade Nacar por cargo, loja,
                 região, perfil de acesso e situação.
               </p>
             </div>
 
-            <div className="rounded-3xl border border-[#f36b2a]/30 bg-[#f36b2a]/10 p-5 text-sm leading-6 text-[#ffcfbd] lg:max-w-md">
-              <strong className="text-white">Importante:</strong> nesta versão, o login ainda deve ser criado em
-              <span className="font-bold"> Supabase &gt; Authentication &gt; Users</span>. Depois copie o
-              <span className="font-bold"> User UID</span> e cadastre o perfil aqui.
+            <div className="rounded-3xl border border-green-500/30 bg-green-500/10 p-5 text-sm leading-6 text-green-100 lg:max-w-md">
+              <strong className="text-white">Novo na v2.2:</strong> o usuário agora é criado diretamente por esta tela,
+              sem precisar acessar o Supabase. Use uma senha inicial e oriente o colaborador a entrar no LMS.
             </div>
           </div>
         </section>
@@ -458,12 +546,12 @@ export default function AdminUsersPage() {
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-black">
-                    {editingProfileId ? 'Editar usuário' : 'Novo perfil de usuário'}
+                    {editingProfileId ? 'Editar usuário' : 'Novo usuário'}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-zinc-400">
                     {editingProfileId
-                      ? 'Atualize as informações internas do colaborador.'
-                      : 'Crie o perfil interno após criar o login no Supabase Auth.'}
+                      ? 'Atualize as informações internas do colaborador. Para alterar senha, use o botão na lista.'
+                      : 'Crie o login de acesso e o perfil interno do colaborador em uma única etapa.'}
                   </p>
                 </div>
 
@@ -479,20 +567,6 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="grid gap-5">
-                <label className="grid gap-2">
-                  <span className="text-sm font-bold text-zinc-300">User UID do Supabase Auth</span>
-                  <input
-                    value={id}
-                    onChange={(event) => setId(event.target.value)}
-                    disabled={Boolean(editingProfileId)}
-                    className="rounded-2xl border border-[#2d3a52] bg-[#080c18] px-4 py-3 text-white outline-none focus:border-[#f36b2a] disabled:cursor-not-allowed disabled:opacity-70"
-                    placeholder="Cole o User UID do usuário criado no Auth"
-                  />
-                  <span className="text-xs leading-5 text-zinc-500">
-                    O ID precisa existir em Authentication &gt; Users. Esta tela não cria a senha do usuário.
-                  </span>
-                </label>
-
                 <div className="grid gap-5 md:grid-cols-2">
                   <label className="grid gap-2">
                     <span className="text-sm font-bold text-zinc-300">Nome</span>
@@ -514,6 +588,22 @@ export default function AdminUsersPage() {
                     />
                   </label>
                 </div>
+
+                {!editingProfileId && (
+                  <label className="grid gap-2">
+                    <span className="text-sm font-bold text-zinc-300">Senha inicial</span>
+                    <input
+                      type="text"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      className="rounded-2xl border border-[#2d3a52] bg-[#080c18] px-4 py-3 text-white outline-none focus:border-[#f36b2a]"
+                      placeholder="Ex.: nacar123"
+                    />
+                    <span className="text-xs leading-5 text-zinc-500">
+                      Use pelo menos 6 caracteres. O colaborador usará essa senha no primeiro acesso.
+                    </span>
+                  </label>
+                )}
 
                 <div className="grid gap-5 md:grid-cols-2">
                   <label className="grid gap-2">
@@ -640,7 +730,7 @@ export default function AdminUsersPage() {
                   disabled={saving}
                   className="rounded-full bg-[#f36b2a] px-6 py-4 text-sm font-black text-white shadow-[0_0_20px_rgba(243,107,42,0.25)] hover:bg-[#ff6a24] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? 'Salvando...' : editingProfileId ? 'Salvar alterações' : 'Cadastrar perfil'}
+                  {saving ? 'Salvando...' : editingProfileId ? 'Salvar alterações' : 'Criar usuário'}
                 </button>
               </div>
             </section>
@@ -650,7 +740,7 @@ export default function AdminUsersPage() {
                 <div>
                   <h2 className="text-2xl font-black">Usuários cadastrados</h2>
                   <p className="mt-2 text-sm text-zinc-400">
-                    {filteredProfiles.length} de {profiles.length} perfil(is) encontrado(s).
+                    {filteredProfiles.length} de {profiles.length} usuário(s) encontrado(s).
                   </p>
                 </div>
 
@@ -734,7 +824,7 @@ export default function AdminUsersPage() {
                             </div>
 
                             <p className="mt-2 text-sm text-zinc-400">{profile.email}</p>
-                            <p className="mt-2 text-sm text-zinc-500 break-all">UID: {profile.id}</p>
+                            <p className="mt-2 break-all text-sm text-zinc-500">UID: {profile.id}</p>
 
                             <div className="mt-4 grid gap-3 text-sm text-zinc-300 md:grid-cols-2">
                               <p>
@@ -775,6 +865,14 @@ export default function AdminUsersPage() {
                               className="rounded-full border border-[#2d3a52] bg-white/5 px-4 py-2 text-xs font-bold text-zinc-300 hover:border-[#f36b2a] hover:text-white"
                             >
                               Editar
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleResetPassword(profile)}
+                              className="rounded-full border border-[#2d3a52] bg-white/5 px-4 py-2 text-xs font-bold text-zinc-300 hover:border-[#f36b2a] hover:text-white"
+                            >
+                              Redefinir senha
                             </button>
 
                             <button

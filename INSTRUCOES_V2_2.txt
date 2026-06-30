@@ -1,0 +1,27 @@
+FACULDADE NACAR LMS — v2.2
+
+Objetivo:
+- Criar usuários diretamente pelo painel /admin/usuarios.
+- Remover a necessidade de criar login manualmente no Supabase Auth.
+- Permitir redefinir senha inicial pelo admin/gestor.
+
+IMPORTANTE:
+Esta versão usa a variável SUPABASE_SERVICE_ROLE_KEY apenas no servidor.
+Ela precisa existir no .env.local e também nas Environment Variables da Vercel.
+Nunca exponha esta chave no navegador e nunca coloque em NEXT_PUBLIC.
+
+Variáveis necessárias:
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_APP_URL=
+
+Teste recomendado:
+1. Publicar v2.2.
+2. Entrar como admin.
+3. Acessar /admin/usuarios.
+4. Criar um usuário novo com senha inicial.
+5. Sair do admin.
+6. Entrar com o e-mail e a senha criada.
+7. Confirmar que o usuário acessa apenas as áreas permitidas para o perfil.
+8. Voltar no admin e testar Redefinir senha.
