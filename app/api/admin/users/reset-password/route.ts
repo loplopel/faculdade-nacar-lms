@@ -34,17 +34,70 @@ async function getRequesterProfile(request: NextRequest) {
     return { error: 'Sessão inválida. Faça login novamente.', profile: null };
   }
 
-  const { data: profile, error: profileError } = await supabaseAdmin
+  const userEmail = String(user.email || '').trim().toLowerCase();
+
+  // Primeiro tenta ler o perfil com a própria sessão do usuário.
+  // Isso evita falha quando o Supabase/Vercel ainda está com cache de service role
+  // ou quando o profile foi encontrado normalmente pelo cliente, mas não pela rota admin.
+  let profile = null as null | { id: string; role: string | null; is_active: boolean | null; situation: string | null };
+  let profileErrorMessage = '';
+
+  const { data: profileBySession, error: profileBySessionError } = await requesterClient
     .from('profiles')
     .select('id, role, is_active, situation')
     .eq('id', user.id)
     .maybeSingle();
 
-  if (profileError || !profile) {
-    return { error: 'Perfil do administrador não encontrado.', profile: null };
+  if (profileBySessionError) {
+    profileErrorMessage = profileBySessionError.message;
   }
 
-  if (!['admin', 'gestor'].includes(profile.role) || !isActiveProfile(profile)) {
+  profile = profileBySession;
+
+  // Fallback seguro pela service role: busca por ID ou e-mail.
+  // O e-mail ajuda quando algum profile antigo ficou com ID diferente.
+  if (!profile) {
+    let adminQuery = supabaseAdmin
+      .from('profiles')
+      .select('id, role, is_active, situation')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const { data: profileById, error: profileByIdError } = await adminQuery;
+
+    if (profileByIdError) {
+      profileErrorMessage = profileByIdError.message;
+    }
+
+    profile = profileById;
+  }
+
+  if (!profile && userEmail) {
+    const { data: profileByEmail, error: profileByEmailError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, role, is_active, situation')
+      .ilike('email', userEmail)
+      .maybeSingle();
+
+    if (profileByEmailError) {
+      profileErrorMessage = profileByEmailError.message;
+    }
+
+    profile = profileByEmail;
+  }
+
+  if (!profile) {
+    return {
+      error: `Perfil do administrador não encontrado para ${userEmail || user.id}.${
+        profileErrorMessage ? ` Detalhe: ${profileErrorMessage}` : ''
+      }`,
+      profile: null,
+    };
+  }
+
+  const requesterRole = String(profile.role || '').toLowerCase();
+
+  if (!['admin', 'gestor'].includes(requesterRole) || !isActiveProfile(profile)) {
     return { error: 'Você não tem permissão para redefinir senhas.', profile: null };
   }
 

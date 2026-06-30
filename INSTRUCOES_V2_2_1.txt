@@ -1,0 +1,18 @@
+Faculdade Nacar LMS — v2.2.1 Hotfix
+
+Correção:
+- Corrige a rota segura de criação de usuários pelo Admin.
+- A API agora reconhece o administrador pela sessão atual e também por fallback seguro em profiles.
+- Melhora a mensagem de erro caso o perfil não seja encontrado.
+- Mantém a criação de login + perfil direto pelo LMS.
+
+Antes de testar:
+- Confirmar que SUPABASE_SERVICE_ROLE_KEY existe no .env.local e na Vercel.
+- Fazer build local.
+- Fazer commit e push.
+- Aguardar deploy da Vercel.
+
+Teste:
+- Entrar como rodrigo.franco@nacar.com.br.
+- Acessar /admin/usuarios.
+- Criar um usuário teste com senha inicial de pelo menos 6 caracteres.
